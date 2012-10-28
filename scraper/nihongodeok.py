@@ -26,6 +26,7 @@ def rfc822_to_date(date_str):
     return datetime.date(parsed_date[0],parsed_date[1],parsed_date[2])
 
 def date_to_str(date):
+    if re.match("[12][0-9][0-9][0-9]-[01][0-9]-[0-3][0-9]"): return date
     if re.search("[0-3][0-9] [A-Z][a-z][a-z] [12][0-9][0-9][0-9] [012][0-9]:[0-5][0-9]:[0-5][0-9]", date):
         # assume as rfc822
         date = rfc822_to_date(date)
