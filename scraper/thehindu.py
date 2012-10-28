@@ -1,6 +1,6 @@
 #!/usr/bin/python
+import time
 import feedparser
-from BeautifulSoup import BeautifulSoup
 import nihongodeok   # a library which is designed for this project. 
 # you can save scraped articles to the database without MySQL APIs 
 # through this "nihongodeok" library.   
@@ -36,42 +36,6 @@ def scrape(soup):
     # in Python, function can return multiple values unlike Java.
     return ( subject, body )
 
-# create an Article object from specified link
-# it downloads the webpage's HTML file specified by url and calls 
-# scraper function to extract subject and body from it.
-def create_article(url, article_date = None):
-    # create a new Article object giving the article's URL.
-    a = nihongodeok.Article(url)
-    # set up necessary fields
-    a.article_date = article_date
-    a.scraped_by = SCRAPED_BY
-    a.language = LANGUAGE
-    a.site_id = SITE_ID
-
-    # check if this article is already there in the database
-    # this functionality is provided by nihongodeok library.
-    if a.is_already_exist():
-        print "Article already exists in database, skip."
-        return # if so, just skip this article to save precious resources
-
-    try:
-        # download and parse the article's HTML file using BeautifulSoup
-        soup = BeautifulSoup(a.open().read(),
-                                 convertEntities=BeautifulSoup.HTML_ENTITIES)
-    except Exception, e:
-        # This exception may happen when the target website is having any problem
-        # (e.g. server down, page deleted) or our network connection is in trouble.
-        print "Article couldn't be downloaded due to an exception. skipping."
-        print e
-        return
-
-    # call scraper function to extract article's subject and contents
-    # scrape function returns both subject and body at the same time.
-    a.subject, a.body = scrape(soup)
-
-    # return an Article object just we made up completely to the caller
-    return a
-
 def run(push=True):
     # download feed and parse it
     feed = feedparser.parse( FEED_URL )
@@ -80,18 +44,55 @@ def run(push=True):
     for item in feed["items"]:
         # URL of one article
         link = item["link"]
+        # create a new Article object giving the article's URL.
+        a = nihongodeok.Article(link)
+        # set up necessary fields
+        a.scraped_by = SCRAPED_BY
+        a.language = LANGUAGE
+        a.site_id = SITE_ID
+
+        # check if this article is already there in the database
+        # this functionality is provided by nihongodeok library.
+        if a.is_already_exist():
+            print "Article already exists in database, skipping."
+            continue # if so, just skip this article to save precious resources
+
+        print "Processing: %s" % a.url
+        # download and parse the article's HTML file using BeautifulSoup
+        soup = a.parse()
+        time.sleep(1)
+
+        # call scraper function to extract article's subject and contents
+        # scrape function returns both subject and body at the same time.
+        a.subject, a.body = scrape(soup)
+
         # article's publish date(it's provided in rfc822 format so it should be converted)
-        article_date = nihongodeok.rfc822_to_date(item["published"])
-        # call create_article specifying link. this function returns Article object
-        a = create_article(link, article_date)
+        a.date = item["published"]
+
+        # sometimes there are atciles what doesn't have any contents but photograph.
+        # since articles without any text contents are out of our concern, you should skip such articles.
+        # e.g. http://www.thehindu.com/news/cities/Hyderabad/livelihood-struggles/article4040473.ece
+        if nihongodeok.normalize(a.body) == "": 
+            print "Empty contents. URL=%s . skipping." % a.url
+            continue   # nihongodeok.normalize() function removes unnecessary whitespaces from string
+
         # push generated Article object to the database server.
         # this functionality is provided by nihongodeok library.
-        if push: a.push()
-        else: a.dump() # just print it out to screen rather than sending to server if push==False
+        if push:
+            result = a.push()
+            print "pushed. url=%s, result=%s" % (a.url, result)
+        else:
+            a.dump() # just print it out to screen rather than sending to server if push==False
 
 if __name__ == '__main__':
     # testing example: just scrape single article and print it to screen
-    create_article("http://www.thehindu.com/news/international/china-expels-bo-xilai-from-legislature/article4033690.ece").dump()
+    a = nihongodeok.Article("http://www.thehindu.com/news/cities/Delhi/airport-metro-dmrc-rejects-reliance-infras-offer-to-quit/article4038332.ece")
+    a.scraped_by = SCRAPED_BY
+    a.language = LANGUAGE
+    a.site_id = SITE_ID
+    a.subject, a.body = scrape(a.parse())
+    a.date = "Sat, 27 Oct 2012 12:04:06 +0530"
+    a.dump()
 
     # spider a feed and scrape all articles and save them to database
     # if you giva False as a parameter, articles won't be saved and just printed in screen
