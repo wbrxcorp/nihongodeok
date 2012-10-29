@@ -33,7 +33,7 @@ get "/get_article" do
         @conn.query("replace into canonical_urls(url_id,canonical_url) values(sha1('#{@conn.escape(url)}'),'#{@conn.escape(canonical_url)}')")
       end
     end
-    if url != canonical_url then
+    if canonical_url != nil && url != canonical_url then
       article_row = @conn.query("select * from articles where id=sha1('#{@conn.escape(url)}')").first
       url = canonical_url
     end
