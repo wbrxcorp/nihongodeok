@@ -10,6 +10,8 @@ from BeautifulSoup import BeautifulSoup
 api_base = "http://search.local:8000/"
 http_proxy = "http://search.local:3128"
 
+VERSION=0.1
+
 __CONFIG_FILE = os.path.dirname(os.path.abspath( __file__ )) + "/nihongodeok.conf"
 
 if os.path.exists(__CONFIG_FILE):
