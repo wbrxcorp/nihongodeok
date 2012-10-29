@@ -36,6 +36,7 @@ def scrape(soup):
     # in Python, function can return multiple values unlike Java.
     return ( subject, body )
 
+# collect latest articles' link from feed and scrape/save them
 def run(push=True):
     # download feed and parse it
     feed = feedparser.parse( FEED_URL )
