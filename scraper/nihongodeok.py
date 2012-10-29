@@ -7,7 +7,7 @@ import datetime
 import urllib2
 from BeautifulSoup import BeautifulSoup
 
-api_base = "http://search.local/"
+api_base = "http://search.local:8000/"
 http_proxy = "http://search.local:3128"
 
 __CONFIG_FILE = os.path.dirname(os.path.abspath( __file__ )) + "/nihongodeok.conf"
