@@ -26,10 +26,11 @@ def rfc822_to_date(date_str):
     return datetime.date(parsed_date[0],parsed_date[1],parsed_date[2])
 
 def date_to_str(date):
-    if re.match("[12][0-9][0-9][0-9]-[01][0-9]-[0-3][0-9]"): return date
-    if re.search("[0-3][0-9] [A-Z][a-z][a-z] [12][0-9][0-9][0-9] [012][0-9]:[0-5][0-9]:[0-5][0-9]", date):
-        # assume as rfc822
-        date = rfc822_to_date(date)
+    if isinstance(date, str) or isinstance(date, unicode):
+        if re.match("[12][0-9][0-9][0-9]-[01][0-9]-[0-3][0-9]", date): return date
+        if re.search("[0-3][0-9] [A-Z][a-z][a-z] [12][0-9][0-9][0-9] [012][0-9]:[0-5][0-9]:[0-5][0-9]", date):
+            # assume as rfc822
+            date = rfc822_to_date(date)
     return "%04d-%02d-%02d" % (date.year, date.month, date.day) if date != None else None
 
 def normalize(str_to_be_normalized):
@@ -42,10 +43,17 @@ class Article:
         self.url = url
         self.canonical = False
     def _get_canonical_url(self):
-        # call api here
+        result = json.load(urllib2.urlopen(api_base + "/get_article?url=%s" % urllib2.quote(self.url)))
         # warn if canonical url is different from original
+        if not result[0]: raise Exception("Something wrong happened in database: %s" % result[1])
+        result = result[1]
+        canonical_url = result["canonical_url"]
+        if self.url != canonical_url:
+            print "Canonical URL(%s) is different from given URL(%s)!" % (canonical_url, self.url)
+            self.url = canonical_url
         self.canonical = True
-        self.already_exist = False
+        #print result
+        self.already_exist = ("article" in result)
     def is_already_exist(self):
         if not self.canonical: self._get_canonical_url()
         return self.already_exist
