@@ -1,6 +1,6 @@
 create table canonical_urls(
   url_id char(40) charset latin1,
-  url text,
+  canonical_url text,
   primary key(url_id)
 );
 
