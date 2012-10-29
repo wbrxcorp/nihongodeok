@@ -21,7 +21,10 @@ if os.path.exists(__CONFIG_FILE):
         globals()[item] = config[item]
 
 if http_proxy != None:
-    os.environ["http_proxy"] = http_proxy
+    proxy_handler = urllib2.ProxyHandler({"http":http_proxy})
+    auth_handler = urllib2.HTTPBasicAuthHandler()
+    opener = urllib2.build_opener(proxy_handler, auth_handler)
+    urllib2.install_opener(opener)
 
 def rfc822_to_date(date_str):
     parsed_date = email.utils.parsedate_tz(date_str)
