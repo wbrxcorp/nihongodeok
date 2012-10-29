@@ -8,7 +8,7 @@ import urllib2
 from BeautifulSoup import BeautifulSoup
 
 api_base = "http://search.local:8000/"
-http_proxy = "http://search.local:3128"
+http_proxy = "search.local:3128"
 
 VERSION=0.1
 
@@ -19,12 +19,6 @@ if os.path.exists(__CONFIG_FILE):
         config = json.load(f)
     for item in config:
         globals()[item] = config[item]
-
-if http_proxy != None:
-    proxy_handler = urllib2.ProxyHandler({"http":http_proxy})
-    auth_handler = urllib2.HTTPBasicAuthHandler()
-    opener = urllib2.build_opener(proxy_handler, auth_handler)
-    urllib2.install_opener(opener)
 
 def rfc822_to_date(date_str):
     parsed_date = email.utils.parsedate_tz(date_str)
@@ -64,7 +58,10 @@ class Article:
         return self.already_exist
     def open(self):
         if not self.canonical: self._get_canonical_url()
-        return urllib2.urlopen(self.url)
+        request = urllib2.Request(self.url)
+        if http_proxy != None:
+            request.set_proxy(http_proxy, None)
+        return urllib2.urlopen(request)
     def parse(self):
         return BeautifulSoup(self.open().read(),convertEntities=BeautifulSoup.HTML_ENTITIES)
 
