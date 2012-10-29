@@ -70,13 +70,6 @@ def run(push=True):
         # article's publish date(it's provided in rfc822 format so it should be converted)
         a.date = item["published"]
 
-        # sometimes there are atciles what doesn't have any contents but photograph.
-        # since articles without any text contents are out of our concern, you should skip such articles.
-        # e.g. http://www.thehindu.com/news/cities/Hyderabad/livelihood-struggles/article4040473.ece
-        if nihongodeok.normalize(a.body) == "": 
-            print "Empty contents. URL=%s . skipping." % a.url
-            continue   # nihongodeok.normalize() function removes unnecessary whitespaces from string
-
         # push generated Article object to the database server.
         # this functionality is provided by nihongodeok library.
         if push:
