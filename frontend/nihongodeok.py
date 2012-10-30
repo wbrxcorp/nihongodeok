@@ -68,5 +68,44 @@ def _scrape_post():
         #exc_type, exc_obj, exc_tb = sys.exc_info()
         return flask.jsonify(html="<h3>Error</h3>\n%s" % (e))
 
+@app.route("/tools/latest_articles")
+def latest_articles():
+    request = "/latest_articles"
+
+    conditions = []
+    if "scraped_by" in flask.request.args:
+        conditions.append("scraped_by=%s" % urllib2.quote(flask.request.args["scraped_by"]))
+    if "site_id" in flask.request.args:
+        conditions.append("site_id=%s" % urllib2.quote(flask.request.args["site_id"]))
+
+    if len(conditions) > 0:
+        request += '?'
+        request += '&'.join(conditions)
+
+    l = load("/list")
+    articles = load(request)
+    return flask.render_template("latest_articles.html", articles=articles, scrapers=l["scrapers"], sites=l["sites"])
+
+@app.route("/tools/show_article/<article_id>.html")
+def show_article(article_id):
+    article = load("/get_article/%s" % article_id)
+    if "body_en" in article:
+        article["encoded_body_en"] = re.sub("\n", "<br/>", cgi.escape(article["body_en"]))
+    return flask.render_template("show_article.html", article=article)
+
+@app.route("/tools/delete_article", methods=['POST'])
+def delete_article():
+    article_id = flask.request.form["article_id"]
+    name = flask.request.form["name"]
+
+    article = load("/get_article/%s" % article_id)
+    if article["scraped_by"] != name:
+        return "Name doesn't match"
+
+    req = urllib2.Request(API + "/push_article", data="article_id=%s" % article_id)
+    result = json.load(urllib2.urlopen(req))
+    return "deleted. <a href='./latest_articles'>Back to list</a>"
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0',debug=True)
+

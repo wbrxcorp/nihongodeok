@@ -1,0 +1,29 @@
+<html>
+<head>
+  <title>Recently scraped articles</title>
+</head>
+<body>
+  <h1>Recently scraped articles</h1>
+  <form method="get" action="latest_articles">
+    scraped by: <select name="scraped_by">
+      <option value="">All</option>
+      {% for scraped_by in scrapers %}
+      <option value="{{scraped_by[0]}}"{%if scraped_by[0] == request.args["scraped_by"]%} selected{%endif%}>{{scraped_by[0]}}</option>
+      {% endfor %}
+    </select>
+    website: <select name="site_id">
+      <option value="">All</option>
+      {% for site_id in sites %}
+      <option value="{{site_id[0]}}"{%if site_id[0] == request.args["site_id"]%} selected{%endif%}>{{site_id[0]}}({{site_id[1]}})</option>
+      {% endfor %}
+    </select>
+    <input type="submit" value="filter"/>
+  </form>
+{% for article in articles %}
+  <div style="margin-bottom:0.5em;">
+    <a href="show_article/{{article.id}}.html">{{ article.subject_en }}</a> ({{ article.site_id }}, {{ article.date }})<br/>
+    scraped by {{article.scraped_by}}, {{article.created_at}}
+  </div>
+{% endfor %}
+</body>
+</html>

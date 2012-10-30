@@ -16,6 +16,16 @@ after do
   @conn.close
 end
 
+get "/get_article/:article_id" do
+  article_id = params[:article_id]
+  row = @conn.query("select * from articles where id='#{@conn.escape(article_id)}'").first
+  return 404 if row == nil
+
+  content_type :json, :charset => 'utf-8'
+
+  {:id=>row["id"], :url=>row["url"], :date=>row["article_date"], :created_at=>row["created_at"], :subject_en=>row["subject_en"], :body_en=>row["body_en"], :subject_ja=>row["subject_ja"], :body_ja=>row["body_ja"], :site_id=>row["site_id"], :scraped_by=>row["scraped_by"]}.to_json
+end
+
 get "/get_article" do
   url = params[:url]
 
@@ -85,7 +95,7 @@ get "/latest_articles" do
   site_id = params[:site_id]
   limit = params[:limit]
   if limit == nil then
-    limit = 20
+    limit = 100
   else
     limit = limit.to_i
   end

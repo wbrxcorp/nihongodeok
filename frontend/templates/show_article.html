@@ -1,0 +1,16 @@
+<html>
+<head>
+  <title>{{article.subject_en}}</title>
+</head>
+<body>
+<h1>{{article.subject_en}}</h1>
+<p><i>Original page: <a href="{{article.url}}" target="_blank">{{article.url}}</a> ({{article.site_id}}), scraped by {{article.scraped_by}} {{article.created_at}}</i></p>
+<p><u>{{article.date}}</u></p>
+{{article.encoded_body_en|safe}}
+<h3>Delete this article from database</h3>
+<form method="post" action="../delete_article">
+  <input type="hidden" name="article_id" value="{{article.id}}"/>
+  If you're really sure, enter youe name <input type="text" name="name"/><input type="submit" value="delete"/>
+</form>
+</body>
+</html>
