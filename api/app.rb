@@ -34,7 +34,7 @@ get "/get_article" do
       end
     end
     if canonical_url != nil && url != canonical_url then
-      article_row = @conn.query("select * from articles where id=sha1('#{@conn.escape(url)}')").first
+      article_row = @conn.query("select * from articles where id=sha1('#{@conn.escape(canonical_url)}')").first
       url = canonical_url
     end
   end
