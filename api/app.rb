@@ -67,3 +67,52 @@ post "/push_article" do
   content_type :json, :charset => 'utf-8'
   [ true ].to_json
 end
+
+get "/list" do
+  scrapers = @conn.query("select scraped_by,count(scraped_by) cnt from articles group by scraped_by").collect {|row|
+    [ row["scraped_by"], row["cnt"] ]
+  }
+  sites = @conn.query("select site_id,count(site_id) cnt from articles group by site_id").collect {|row|
+    [ row["site_id"], row["cnt"] ]
+  }
+
+  content_type :json, :charset => 'utf-8'
+  { :scrapers=>scrapers, :sites=>sites }.to_json
+end
+
+get "/latest_articles" do
+  scraped_by = params[:scraped_by]
+  site_id = params[:site_id]
+  limit = params[:limit]
+  if limit == nil then
+    limit = 20
+  else
+    limit = limit.to_i
+  end
+  
+  conditions = []
+  conditions << "scraped_by='#{@conn.escape(scraped_by)}'" if scraped_by != nil && scraped_by != ""
+  conditions << "site_id='#{@conn.escape(site_id)}'" if site_id != nil && site_id != ""
+  if conditions.size > 0 then
+    conditions = "where " + conditions.join(' and ') 
+  else
+    conditions = ""
+  end
+
+  articles = @conn.query("select * from articles #{conditions} order by created_at desc limit #{limit}").collect {|row|
+    {:id=>row["id"], :date=>row["article_date"], :created_at=>row["created_at"], :subject_en=>row["subject_en"], :body_en=>row["body_en"], :subject_ja=>row["subject_ja"], :body_ja=>row["body_ja"], :site_id=>row["site_id"], :scraped_by=>row["scraped_by"]}
+  }
+
+  content_type :json, :charset => 'utf-8'
+  articles.to_json
+end
+
+post "/delete_article" do
+  article_id = params[:article_id]
+  return 400 if article_id == nil
+
+  @conn.query("delete from articles where id='#{@conn.escape(article_id)}'")
+
+  content_type :json, :charset => 'utf-8'
+  [true].to_json
+end
