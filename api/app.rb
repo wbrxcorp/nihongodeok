@@ -100,7 +100,7 @@ get "/latest_articles" do
   end
 
   articles = @conn.query("select * from articles #{conditions} order by created_at desc limit #{limit}").collect {|row|
-    {:id=>row["id"], :date=>row["article_date"], :created_at=>row["created_at"], :subject_en=>row["subject_en"], :body_en=>row["body_en"], :subject_ja=>row["subject_ja"], :body_ja=>row["body_ja"], :site_id=>row["site_id"], :scraped_by=>row["scraped_by"]}
+    {:id=>row["id"], :url=>row["url"], :date=>row["article_date"], :created_at=>row["created_at"], :subject_en=>row["subject_en"], :body_en=>row["body_en"], :subject_ja=>row["subject_ja"], :body_ja=>row["body_ja"], :site_id=>row["site_id"], :scraped_by=>row["scraped_by"]}
   }
 
   content_type :json, :charset => 'utf-8'
