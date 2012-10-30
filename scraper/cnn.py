@@ -1,3 +1,4 @@
+# http://edition.cnn.com/2012/10/30/us/tropical-weather-sandy/index.html
 def scrape(soup):
     subject = soup.findAll('h1')[0].string
     paragraphs = []
