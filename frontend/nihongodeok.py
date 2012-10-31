@@ -13,7 +13,8 @@ import default_config
 
 app = flask.Flask(__name__)
 app.config.from_object(default_config.object)
-config_file = os.path.dirname(os.path.abspath( __file__ )) + "/nihongodeok.conf"
+app_dir = os.path.dirname(os.path.abspath( __file__ ))
+config_file = app_dir + "/nihongodeok.conf"
 if os.path.exists(config_file): app.config.from_pyfile(config_file)
 API = app.config["API"]
 
@@ -105,6 +106,23 @@ def delete_article():
     req = urllib2.Request(API + "/push_article", data="article_id=%s" % article_id)
     result = json.load(urllib2.urlopen(req))
     return "deleted. <a href='./latest_articles'>Back to list</a>"
+
+@app.route("/ts/<script_name>.js")
+def ts(script_name):
+    tsfile = "%s/ts/%s.ts" % (app_dir, script_name)
+    jsfile = "%s/ts/%s.js" % (app_dir, script_name)
+
+    if not os.path.exists(tsfile):
+        return "Not found", 404
+
+    need_compile = False
+    if not os.path.exists(jsfile): need_compile = True
+    elif os.stat(tsfile).st_mtime > os.stat(jsfile).st_mtime: need_compile = True
+
+    if need_compile:
+        os.system("tsc --out %s %s" % (jsfile, tsfile))
+
+    return flask.send_file("%s/ts/%s.js" % (app_dir, script_name), "text/javascript")
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0',debug=True)
