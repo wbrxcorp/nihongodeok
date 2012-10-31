@@ -117,10 +117,14 @@ def ts(script_name):
 
     need_compile = False
     if not os.path.exists(jsfile): need_compile = True
-    elif os.stat(tsfile).st_mtime > os.stat(jsfile).st_mtime: need_compile = True
+    else:
+        stat_jsfile = os.stat(jsfile)
+        if stat_jsfile.st_size == 0 or os.stat(tsfile).st_mtime > stat_jsfile.st_mtime: 
+            need_compile = True
 
     if need_compile:
-        os.system("tsc --out %s %s" % (jsfile, tsfile))
+        if os.system("tsc --out %s %s" % (jsfile, tsfile)) != 0:
+            return "alert('TypeScript compilation error');"
 
     return flask.send_file("%s/ts/%s.js" % (app_dir, script_name), "text/javascript")
 
