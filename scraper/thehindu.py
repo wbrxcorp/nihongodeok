@@ -39,7 +39,7 @@ def scrape(soup):
 # collect latest articles' link from feed and scrape/save them
 def run(push=True):
     # download feed and parse it
-    feed = feedparser.parse( FEED_URL )
+    feed = feedparser.parse( nihongodeok.cacheable_urlopen(FEED_URL) )
 
     # process each link
     for item in feed["items"]:
@@ -61,7 +61,7 @@ def run(push=True):
         print "Processing: %s" % a.url
         # download and parse the article's HTML file using BeautifulSoup
         soup = a.parse()
-        time.sleep(1)
+        #time.sleep(1)
 
         # call scraper function to extract article's subject and contents
         # scrape function returns both subject and body at the same time.
@@ -90,4 +90,4 @@ if __name__ == '__main__':
 
     # spider a feed and scrape all articles and save them to database
     # if you giva False as a parameter, articles won't be saved and just printed in screen
-    run()
+    run(False)

@@ -46,6 +46,9 @@ def date_to_str(date):
 def normalize(str_to_be_normalized):
     return re.sub("\n{3,}", "\n\n", str_to_be_normalized.strip())
 
+def cacheable_urlopen(url):
+    return urllib2.urlopen(api_base + "/cacheable_fetch?url=%s" % urllib2.quote(url))
+
 class Article:
     def __init__(self, url):
         if url == None or not(url.startswith("http://") or url.startswith("http://")):
@@ -69,10 +72,7 @@ class Article:
         return self.already_exist
     def open(self):
         if not self.canonical: self._get_canonical_url()
-        request = urllib2.Request(self.url)
-        if http_proxy != None:
-            request.set_proxy(http_proxy, None)
-        return urllib2.urlopen(request)
+        return cacheable_urlopen(self.url)
     def parse(self):
         return BeautifulSoup(self.open().read(),convertEntities=BeautifulSoup.HTML_ENTITIES)
 
