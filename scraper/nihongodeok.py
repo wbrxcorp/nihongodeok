@@ -10,7 +10,7 @@ from BeautifulSoup import BeautifulSoup
 api_base = "http://search.local:8000/"
 http_proxy = "search.local:3128"
 
-VERSION="0.1.1"
+VERSION="0.1.2"
 
 __CONFIG_FILE = os.path.dirname(os.path.abspath( __file__ )) + "/nihongodeok.conf"
 
@@ -27,7 +27,7 @@ def rfc822_to_date(date_str):
 def date_to_str(date):
     if isinstance(date, str) or isinstance(date, unicode):
         if re.match("[12][0-9][0-9][0-9]-[01][0-9]-[0-3][0-9]", date): return date
-        if re.search("[0-3][0-9] [A-Z][a-z][a-z] [12][0-9][0-9][0-9] [012][0-9]:[0-5][0-9]:[0-5][0-9]", date):
+        if re.search("[0-3][0-9] +[A-Z][a-z][a-z] +[12][0-9][0-9][0-9] +[012][0-9]:[0-5][0-9]:[0-5][0-9]", date):
             # assume as rfc822
             date = rfc822_to_date(date)
     return "%04d-%02d-%02d" % (date.year, date.month, date.day) if date != None else None
