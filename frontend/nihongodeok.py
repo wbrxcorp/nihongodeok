@@ -5,6 +5,7 @@ import sys
 import cgi
 import flask
 import json
+import urllib
 import urllib2
 import MeCab
 import re
@@ -56,7 +57,7 @@ def _scrape_post():
         canonical_url = result["canonical_url"]
 
         exec(script)
-        soup = BeautifulSoup(urllib2.urlopen(canonical_url).read(),convertEntities=BeautifulSoup.HTML_ENTITIES)
+        soup = BeautifulSoup(urllib2.urlopen(API + "/cacheable_fetch?url=" + urllib2.quote(canonical_url)).read(),convertEntities=BeautifulSoup.HTML_ENTITIES)
         result = scrape(soup)
         if result == None:
             return flask.jsonify(html="<h3>Article skipped</h3>Scraper returned None\n")
@@ -89,7 +90,11 @@ def latest_articles():
 
 @app.route("/tools/show_article/<article_id>.html")
 def show_article(article_id):
-    article = load("/get_article/%s" % article_id)
+    try:
+        article = load("/get_article/%s" % article_id)
+    except urllib2.HTTPError, e:
+        return "HTTP Error %d during communicating with API" % (e.code), e.code
+
     if "body_en" in article:
         article["encoded_body_en"] = re.sub("\n", "<br/>", cgi.escape(article["body_en"]))
     return flask.render_template("show_article.html", article=article)
@@ -103,9 +108,14 @@ def delete_article():
     if article["scraped_by"] != name:
         return "Name doesn't match"
 
-    req = urllib2.Request(API + "/push_article", data="article_id=%s" % article_id)
+    req = urllib2.Request(API + "/delete_article", urllib.urlencode({"article_id":article_id}))
     result = json.load(urllib2.urlopen(req))
     return "deleted. <a href='./latest_articles'>Back to list</a>"
+
+@app.route("/tools/statistics")
+def statistics():
+    statistics = load("/statistics")
+    return flask.render_template("statistics.html", statistics=statistics)
 
 @app.route("/ts/<script_name>.js")
 def ts(script_name):

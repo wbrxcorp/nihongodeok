@@ -4,7 +4,7 @@
 </head>
 <body>
 <h1>{{article.subject_en}}</h1>
-<p><i>Original page: <a href="{{article.url}}" target="_blank">{{article.url}}</a> ({{article.site_id}}), scraped by {{article.scraped_by}} {{article.created_at}}</i></p>
+<p><i>Original page: <a href="{{article.url}}" target="_blank">{{article.url}}</a> ({{article.site_id}}), scraped by {{article.scraped_by}} {{article.created_at}}</i> (<a href="http://translate.google.co.jp/translate?sl=en&tl=ja&js=n&prev=_t&hl=ja&ie=UTF-8&layout=2&eotf=1&u={{ article.url }}" target="_blank">Translate</a>)</p>
 <p><u>{{article.date}}</u></p>
 {{article.encoded_body_en|safe}}
 <h3>Delete this article from database</h3>

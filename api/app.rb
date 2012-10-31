@@ -7,6 +7,7 @@ require "sinatra"
 require "mysql2"
 require "nokogiri"
 require "open-uri"
+require "xz"
 
 before do
   @conn = Mysql2::Client.new(:host=>"localhost", :username=>"nihongodeok", :database=>"search")
@@ -36,7 +37,8 @@ get "/get_article" do
     if canonical_url_row != nil then
       canonical_url = canonical_url_row["canonical_url"]
     else
-      doc = Nokogiri.HTML(open(url))
+      _content_type, contents = cacheable_fetch(url)
+      doc = Nokogiri.HTML(contents)
       canonical = doc.search("/html/head/link[@rel='canonical']").first
       if canonical && canonical.key?("href") then
         canonical_url = canonical[:href]
@@ -125,4 +127,47 @@ post "/delete_article" do
 
   content_type :json, :charset => 'utf-8'
   [true].to_json
+end
+
+get "/statistics" do
+  conditions = [ [ "today", "created_at>=current_date()"],
+                 [ "yday", "created_at>=date_sub(current_date(),INTERVAL 1 DAY) and created_at < current_date()" ],
+                 [ "-2days", "created_at>=date_sub(current_date(),INTERVAL 2 DAY) and created_at < date_sub(current_date(),INTERVAL 1 DAY)" ],
+                 [ "-3days", "created_at>=date_sub(current_date(),INTERVAL 3 DAY) and created_at < date_sub(current_date(),INTERVAL 2 DAY)" ],
+                 [ "-4days", "created_at>=date_sub(current_date(),INTERVAL 4 DAY) and created_at < date_sub(current_date(),INTERVAL 3 DAY)" ],
+                 [ "-5days", "created_at>=date_sub(current_date(),INTERVAL 5 DAY) and created_at < date_sub(current_date(),INTERVAL 4 DAY)" ],
+                 [ "-6days", "created_at>=date_sub(current_date(),INTERVAL 6 DAY) and created_at < date_sub(current_date(),INTERVAL 5 DAY)" ]]
+  daily = []
+  conditions.each {|condition|
+    cnt = @conn.query("select count(*) cnt from articles where #{condition[1]}").first["cnt"]
+    daily << [ condition[0], cnt ]
+  }
+
+  content_type :json, :charset => 'utf-8'
+  {:daily=>daily}.to_json
+end
+
+def cacheable_fetch(url, ttl=3600)
+  row = @conn.query("select content_type,contents from contents_cache where id=sha1('#{@conn.escape(url)}') and created_at >= date_sub(now(), interval #{ttl} second)").first
+  if row != nil then
+    #p "cache hit"
+    contents = XZ.decompress(row["contents"])
+    content_type = row["content_type"]
+  else
+    content_type, contents = open(url) {|f|
+      [f.content_type, f.read]
+    }
+    @conn.query("replace into contents_cache(id,content_type,contents,created_at) values(sha1('#{@conn.escape(url)}'), '#{@conn.escape(content_type)}', '#{@conn.escape(XZ.compress(contents))}', now())")
+  end
+  return [content_type, contents]
+end
+
+get "/cacheable_fetch" do
+  url = params[:url]
+  return 400 if url == nil
+
+  _content_type, contents = cacheable_fetch(url)
+
+  content_type _content_type
+  contents
 end

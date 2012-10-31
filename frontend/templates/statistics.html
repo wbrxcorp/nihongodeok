@@ -1,0 +1,12 @@
+<html>
+<body>
+<h1>scraping statistics</h1>
+<h2>number of articles scraped</h2>
+<h3>last one week</h3>
+<table border="1">
+{%for day in statistics.daily %}
+  <tr><th>{{ day[0] }}</th><td>{{ day[1] }}</td></tr>
+{%endfor%}
+</table>
+</body>
+</html>
