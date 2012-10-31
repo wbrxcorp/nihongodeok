@@ -166,8 +166,13 @@ get "/cacheable_fetch" do
   url = params[:url]
   return 400 if url == nil
 
-  _content_type, contents = cacheable_fetch(url)
-
+  begin
+    _content_type, contents = cacheable_fetch(url)
+  rescue SocketError
+    return 503
+  rescue OpenURI::HTTPError=>e
+    return e.io.status[0].to_i
+  end
   content_type _content_type
   contents
 end
