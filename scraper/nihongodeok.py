@@ -10,7 +10,7 @@ from BeautifulSoup import BeautifulSoup
 api_base = "http://search.local:8000/"
 http_proxy = "search.local:3128"
 
-VERSION="0.1.3"
+VERSION="0.1.4"
 
 __CONFIG_FILE = os.path.dirname(os.path.abspath( __file__ )) + "/nihongodeok.conf"
 
@@ -29,11 +29,11 @@ def rfc822_to_date(date_str):
 def date_to_str(date):
     if isinstance(date, str) or isinstance(date, unicode):
         if re.match("[12][0-9][0-9][0-9]-[01][0-9]-[0-3][0-9]", date): return date
-        if re.search("[0-3][0-9] +[A-Za-z][A-Za-z][A-Za-z] +[12][0-9][0-9][0-9] +[012][0-9]:[0-5][0-9]:[0-5][0-9]", date):
+        if re.search("[0-3]?[0-9] +[A-Za-z][A-Za-z][A-Za-z] +[12][0-9][0-9][0-9] +[012][0-9]:[0-5][0-9]:[0-5][0-9]", date):
             # assume as rfc822
             date = rfc822_to_date(date)
         else:
-            match = re.search("[0-3][0-9] +[A-Za-z][A-Za-z][A-Za-z] +[12][0-9][0-9][0-9]", date)
+            match = re.search("[0-3]?[0-9] +[A-Za-z][A-Za-z][A-Za-z] +[12][0-9][0-9][0-9]", date)
             if match != None:
                 splitted_date = match.group().split()
                 date = datetime.date(int(splitted_date[2]), MONTHS[splitted_date[1].lower()], int(splitted_date[0]))
