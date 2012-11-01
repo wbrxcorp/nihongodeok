@@ -54,9 +54,16 @@ def run(push=True):
 
         # check if this article is already there in the database
         # this functionality is provided by nihongodeok library.
-        if a.is_already_exist():
-            print "Article already exists in database, skipping."
-            continue # if so, just skip this article to save precious resources
+        try:
+            if a.is_already_exist():
+                print "Article already exists in database, skipping."
+                continue # if so, just skip this article to save precious resources
+        except HTTPError,e:
+            if e.code == 404:   # page not found
+                print "Article doesn't exist in web server.  skipping."
+                continue
+            else:
+                raise e
 
         print "Processing: %s" % a.url
         # download and parse the article's HTML file using BeautifulSoup
