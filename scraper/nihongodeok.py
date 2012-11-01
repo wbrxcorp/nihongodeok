@@ -14,7 +14,7 @@ VERSION="0.1.3"
 
 __CONFIG_FILE = os.path.dirname(os.path.abspath( __file__ )) + "/nihongodeok.conf"
 
-MONTHS = { "jan":1, "feb":3, "mar":3, "apr":4, "may":5, "jun":6, "jul":7, "aug":8, "sep":9, "oct":10, "nov":11, "dec":12 }
+MONTHS = { "jan":1, "feb":2, "mar":3, "apr":4, "may":5, "jun":6, "jul":7, "aug":8, "sep":9, "oct":10, "nov":11, "dec":12 }
 
 if os.path.exists(__CONFIG_FILE):
     with open(__CONFIG_FILE, "r") as f:
