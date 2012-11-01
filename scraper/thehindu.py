@@ -58,7 +58,7 @@ def run(push=True):
             if a.is_already_exist():
                 print "Article already exists in database, skipping."
                 continue # if so, just skip this article to save precious resources
-        except HTTPError,e:
+        except urllib2.HTTPError,e:
             if e.code == 404:   # page not found
                 print "Article doesn't exist in web server.  skipping."
                 continue
