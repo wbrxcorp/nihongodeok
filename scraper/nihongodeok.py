@@ -10,7 +10,7 @@ from BeautifulSoup import BeautifulSoup
 api_base = "http://search.local:8000/"
 http_proxy = "search.local:3128"
 
-VERSION="0.1.4"
+VERSION="0.1.5"
 
 __CONFIG_FILE = os.path.dirname(os.path.abspath( __file__ )) + "/nihongodeok.conf"
 
@@ -27,7 +27,7 @@ def rfc822_to_date(date_str):
     return datetime.date(parsed_date[0],parsed_date[1],parsed_date[2])
 
 def date_to_str(date):
-    if isinstance(date, str) or isinstance(date, unicode):
+    if isinstance(date, basestring):
         if re.match("[12][0-9][0-9][0-9]-[01][0-9]-[0-3][0-9]", date): return date
         if re.search("[0-3]?[0-9] +[A-Za-z][A-Za-z][A-Za-z] +[12][0-9][0-9][0-9] +[012][0-9]:[0-5][0-9]:[0-5][0-9]", date):
             # assume as rfc822
@@ -79,6 +79,8 @@ class Article:
     def _check_error(self):
         if not hasattr(self, "subject") or self.subject == None:
             raise Exception("Subject(subject) is not specified.")
+        if not isinstance(self.subject, basestring):
+            raise Exception("Subject(subject) must not be other than string type. given type=%s" % type(self.subject))
         if normalize(self.subject) == "":
             raise Exception("Subject(subject) is empty. url=%s" % self.url)
         if not hasattr(self, "body") or self.body == None:
