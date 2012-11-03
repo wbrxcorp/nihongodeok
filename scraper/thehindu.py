@@ -59,7 +59,7 @@ def run(push=True):
                 print "Article already exists in database, skipping."
                 continue # if so, just skip this article to save precious resources
         except urllib2.HTTPError,e:
-            if e.code == 404:   # page not found
+            if e.code == 404 or e.code == 410:   # page not found or so
                 print "Article doesn't exist in web server.  skipping."
                 continue
             else:
