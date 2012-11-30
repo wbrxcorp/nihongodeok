@@ -13,6 +13,10 @@ import java.io.ByteArrayInputStream
 import org.apache.http.client.methods.HttpGet
 import org.apache.http.impl.client.DefaultHttpClient
 import java.io.ByteArrayOutputStream
+import org.tukaani.xz.SingleXZInputStream
+import org.tukaani.xz.XZOutputStream
+import org.tukaani.xz.X86Options
+import org.tukaani.xz.LZMA2Options
 
 @Controller
 @RequestMapping(Array(""))
@@ -59,9 +63,29 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 	  }
 	}
 	
+	def decompressXZ(src:Array[Byte]):Array[Byte] = {
+	  val is = new SingleXZInputStream(new ByteArrayInputStream(src))
+	  val buf = new Array[Byte](1024)
+	  val baos = new ByteArrayOutputStream()
+	  var i = is.read(buf)
+	  while (i > 0) {
+	   baos.write(buf, 0, i)
+	   i = is.read(buf)
+	  }
+	  return baos.toByteArray
+	}
+	
+	def compressXZ(src:Array[Byte]):Array[Byte] = {
+	  val baos = new ByteArrayOutputStream()
+	  val os = new XZOutputStream(baos, Array(new X86Options(),new LZMA2Options()))
+	  os.write(src)
+	  os.flush()
+	  return baos.toByteArray
+	}
+	
 	def _cacheableFetch(url:String, ttl:Int = 3600):(String,Array[Byte]) = {
 	  jdbcTemplate.queryForList("select content_type,contents from contents_cache where id=sha1(?) and created_at >= date_sub(now(), interval ? second)", url, ttl.asInstanceOf[Integer]).headOption.foreach {row=>
-	    return (row.get("content_type").asInstanceOf[String], row.get("contents").asInstanceOf[Array[Byte]])
+	    return (row.get("content_type").asInstanceOf[String], decompressXZ(row.get("contents").asInstanceOf[Array[Byte]]))
 	  }
 	  val httpClient = new DefaultHttpClient()
 	  val httpGet = new HttpGet(url)
@@ -72,7 +96,7 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 	  entity.writeTo(baos)
 	  val content = baos.toByteArray()
 	  jdbcTemplate.update("replace into contents_cache(id,content_type,contents,created_at) values(sha1(?), ?, ?, now())", url, contentType, content)
-	  (contentType, content)
+	  (contentType, compressXZ(content))
 	} 
 	
 	@RequestMapping(value=Array("get_article"), method = Array(RequestMethod.GET))
