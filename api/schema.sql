@@ -4,24 +4,24 @@ create table canonical_urls(
   primary key(url_id)
 );
 
-create table articles (
-  id serial primary key,
-  url varchar(255) unique not null,
-  site_id varchar(64) charset latin1,
-  article_date date,
-  subject_en text,
-  body_en text,
-  subject_ja text,
-  body_ja text,
-  created_at datetime not null,
-  scraped_by varchar(64),
-  quality_issues text,
-  fulltext index(subject_en),
-  fulltext index(body_en),
-  fulltext index(subject_ja),
-  fulltext index(body_ja),
-  fulltext index(quality_issues),
-  index using btree(site_id),
-  index using btree(created_at),
-  index using btree(scraped_by)
-) engine=mroonga;
+CREATE TABLE `articles` (
+  `id` char(40) CHARACTER SET latin1 NOT NULL DEFAULT '',
+  `url` varchar(255) NOT NULL,
+  `site_id` varchar(64) DEFAULT NULL,
+  `article_date` date DEFAULT NULL,
+  `subject_en` text,
+  `body_en` text,
+  `subject_ja` text,
+  `body_ja` text,
+  `created_at` datetime NOT NULL,
+  `scraped_by` varchar(64) CHARACTER SET latin1 DEFAULT NULL,
+  `quality_issues` text,
+  PRIMARY KEY (`id`),
+  KEY `site_id` (`site_id`) USING BTREE,
+  KEY `created_at` (`created_at`) USING BTREE,
+  KEY `scraped_by` (`scraped_by`) USING BTREE,
+  FULLTEXT KEY `articles_subject_en` (`subject_en`),
+  FULLTEXT KEY `articles_body_en` (`body_en`),
+  FULLTEXT KEY `articles_subject_ja` (`subject_ja`),
+  FULLTEXT KEY `articles_body_ja` (`body_ja`)
+) ENGINE=mroonga DEFAULT CHARSET=utf8;

@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<project default="war">
+	<taskdef resource="scala/tools/ant/antlib.xml">
+		<classpath>
+			<pathelement location="lib/scala-compiler.jar" />
+			<pathelement location="webapp/WEB-INF/lib/scala-library.jar" />
+		</classpath>
+	</taskdef>
+	<target name="compile">
+		<delete dir="build"/>
+		<mkdir dir="build/WEB-INF/classes"/>
+		<copy todir="build">
+			<fileset dir="webapp">
+				<exclude name="WEB-INF/classes"/>
+			</fileset>
+		</copy>
+		<scalac srcdir="src" destdir="build/WEB-INF/classes" encoding="UTF-8">
+			<classpath>
+				<fileset dir="lib" includes="*.jar"/>
+				<fileset dir="webapp/WEB-INF/lib" includes="*.jar"/>
+			</classpath>
+		</scalac>
+		<javac srcdir="src" destdir="build/WEB-INF/classes" encoding="UTF-8" debug="true" target="1.6">
+			<classpath>
+				<fileset dir="lib" includes="*.jar"/>
+				<fileset dir="webapp/WEB-INF/lib" includes="*.jar"/>
+			</classpath>
+		</javac>
+		<copy todir="build/WEB-INF/classes">
+			<fileset dir="src" includes="**/*.xml,**/*.properties"/>
+		</copy>
+	</target>
+
+	<target name="war" depends="compile">
+		<jar basedir="build" jarfile="trunk.war"/>
+		<delete dir="build"/>
+	</target>
+</project>
