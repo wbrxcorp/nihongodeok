@@ -1,0 +1,11 @@
+<html>
+<body>
+<h1>Articles to be translated</h1>
+{% for article in articles %}
+  <div style="margin-bottom:0.5em;">
+    <a href="{{article.id}}">{{ article.subject_en }}</a> ({{ article.site_id }}, {{ article.date }})<br/>
+    scraped at {{article.created_at}} 
+  </div>
+{% endfor %}
+</body>
+</html>

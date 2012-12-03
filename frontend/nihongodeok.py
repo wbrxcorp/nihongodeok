@@ -9,7 +9,7 @@ import urllib
 import urllib2
 import MeCab
 import re
-from BeautifulSoup import BeautifulSoup
+from BeautifulSoup import BeautifulSoup,Comment
 import default_config
 
 app = flask.Flask(__name__)
@@ -18,13 +18,15 @@ app_dir = os.path.dirname(os.path.abspath( __file__ ))
 config_file = app_dir + "/nihongodeok.conf"
 if os.path.exists(config_file): app.config.from_pyfile(config_file)
 API = app.config["API"]
+NEW_API = app.config["NEW_API"]
 
 def load(path):
     return json.load(urllib2.urlopen(API + path))
 
 @app.route('/')
 def index():
-    return flask.render_template("index.html")
+    articles = load("/latest_articles/ja")
+    return flask.render_template("index.html",articles=articles)
 
 @app.route("/tools/scrape")
 def _scrape():
@@ -47,6 +49,11 @@ def _scrape():
     return (subject, body, date)"""
     return flask.render_template("scrape.html",script=script)
 
+def remove_comments(soup):
+    for comment in soup.findAll(text=lambda text:isinstance(text, Comment)):
+        print comment
+        comment.extract()    
+
 @app.route("/tools/scrape", methods=['POST'])
 def _scrape_post():
     url = flask.request.form["url"]
@@ -58,6 +65,7 @@ def _scrape_post():
 
         exec(script)
         soup = BeautifulSoup(urllib2.urlopen(API + "/cacheable_fetch?url=" + urllib2.quote(canonical_url)).read(),convertEntities=BeautifulSoup.HTML_ENTITIES)
+        remove_comments(soup)
         result = scrape(soup)
         if result == None:
             return flask.jsonify(html="<h3>Article skipped</h3>Scraper returned None\n")
@@ -117,6 +125,32 @@ def statistics():
     statistics = load("/statistics")
     return flask.render_template("statistics.html", statistics=statistics)
 
+@app.route("/tools/translate/")
+def to_be_translated():
+    articles = load("/articles_to_be_translated")
+    return flask.render_template("to_be_translated.html", articles = articles)
+
+@app.route("/tools/translate/<article_id>", methods=['GET'])
+def translate_get(article_id, message = None):
+    try:
+        article = load("/get_article/%s" % article_id)
+    except urllib2.HTTPError, e:
+        return "HTTP Error %d during communicating with API" % (e.code), e.code
+
+    if "body_en" in article:
+        article["encoded_body_en"] = re.sub("\n", "<br/>", cgi.escape(article["body_en"]))
+    return flask.render_template("translate.html", article=article, message=message)
+
+@app.route("/tools/translate/<article_id>", methods=['POST'])
+def translate_post(article_id):
+    subject = flask.request.form["subject"].encode("utf-8")
+    body = flask.request.form["body"].encode("utf-8")
+    params = {"article_id":article_id, "language":"ja", "subject":subject, "body":body}
+    req = urllib2.Request(API + "/translate_article", urllib.urlencode(params))
+    result = json.load(urllib2.urlopen(req))
+    
+    return translate_get(article_id)
+
 @app.route("/ts/<script_name>.js")
 def ts(script_name):
     tsfile = "%s/ts/%s.ts" % (app_dir, script_name)
@@ -137,6 +171,10 @@ def ts(script_name):
             return "alert('TypeScript compilation error');"
 
     return flask.send_file("%s/ts/%s.js" % (app_dir, script_name), "text/javascript")
+
+@app.route("/search")
+def search():
+    return "Not implemented yet"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0',debug=True)

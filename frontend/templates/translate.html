@@ -1,0 +1,22 @@
+<html>
+<head>
+  <title>Article translation</title>
+</head>
+<body>
+<h1>Article translation</h1>
+<h2>{{article.subject_en}}</h2>
+{{article.encoded_body_en|safe}}
+<hr/>
+<ul>
+  <li><a href="http://translate.google.com" target="_blank">Open Google Translate(http://translate.google.com)</a></li>
+  <li><a href="./">Return to list</a></li>
+</ul>
+<hr/>
+<form method="post" action="../translate/{{article.id}}">
+  Subject in JAPANESE: <input type="text" name="subject" value="{{article.subject_ja or ''}}" size="80"/><br/>
+  Article body in JAPANESE:<br/>
+  <textarea cols="80" rows="25" name="body">{{article.body_ja or ''}}</textarea><br/>
+  <input type="submit" value="post translation"/>
+</form>
+</body>
+</html>
