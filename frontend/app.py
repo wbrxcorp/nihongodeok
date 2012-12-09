@@ -5,6 +5,7 @@ import sys
 import cgi
 import datetime
 import flask
+import werkzeug.urls
 import json
 import urllib
 import urllib2
@@ -175,7 +176,20 @@ def ts(script_name):
 
 @app.route("/search")
 def search():
-    return "Not implemented yet"
+    q = flask.request.args["q"]
+    page = int(flask.request.args["page"]) if "page" in flask.request.args else 1
+    search_uri = "/search?q=%s&offset=%d&limit=10" % (urllib2.quote(q.encode("utf-8")), (page - 1) * 10)
+    data = {"page":page}
+    if q != "":
+        results = load(search_uri)
+        data["count"] = results[0]
+        data["results"] = results[1]
+    data["keyword"] = q
+    return flask.render_template("search.html", **data)
+
+@app.template_filter("urlencode")
+def urlencode(text):
+    return werkzeug.urls.url_quote_plus(text)
 
 @app.template_filter("unixtime2exacttime")
 def unixtime2exacttime(t):
