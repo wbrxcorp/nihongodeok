@@ -23,7 +23,7 @@
 {% for article in articles %}
   <div style="margin-bottom:0.5em;">
     <a href="show_article/{{article.id}}.html">{{ article.subject_en }}</a> ({{ article.site_id }}, {{ article.date }})<br/>
-    scraped by {{article.scraped_by}}, {{article.created_at}} 
+    scraped by {{article.scraped_by}}, {{article.created_at|unixtime2exacttime}} 
   </div>
 {% endfor %}
 </body>

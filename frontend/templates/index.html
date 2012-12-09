@@ -1,42 +1,72 @@
+<!DOCTYPE html>
 <html lang="ja">
   <head>
-    <meta charset="utf-8">
+    <meta charset="utf-8"/>
     <title>日本語でおｋ.com</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="description" content="日本に関係のあるニュースを世界から集めました。" />
+
     <!-- Le styles -->
-    <link href="/static/css/bootstrap.css" rel="stylesheet"/>
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet"/>
+    <style type="text/css">
+      body {
+        padding-bottom: 40px;
+      }
+      .sidebar-nav {
+        padding: 9px 0;
+      }
+      .span9 {
+        padding-top: 9px;
+      }
+    </style>
+    <script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
 
     <!-- Le HTML5 shim, for IE6-8 support of HTML5 elements -->
     <!--[if lt IE 9]>
       <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
     <![endif]-->
-    <style type="text/css">
-      body {
-        padding-top: 60px; /* 60px to make the container go all the way to the bottom of the topbar */
-      }
-      span.keyword {
-        background-color: yellow;
-      }    
-    </style>
-    <link href="/static/css/bootstrap-responsive.css" rel="stylesheet"/>
-    <script src="/static/js/jquery-1.8.2.min.js"></script>
-    <script src="/static/js/bootstrap.min.js"></script>
-    {% include 'analytics.html' %}
+    {% include "analytics.html" %}
   </head>
 
   <body>
-    {% include 'navbar.html' %}
-    <div class="container">
-      <h1>日本語でおk.com</h1>
-      <p>日本に関係のあるニュースを世界から集めました</p>
-      {% for article in articles %}
-      <div style="margin-bottom:0.5em;">
-	<a href="http://translate.google.co.jp/translate?sl=en&tl=ja&js=n&prev=_t&hl=ja&ie=UTF-8&layout=2&eotf=1&u={{article.url}}">{{ article.subject_ja }}</a> ({{ article.site_id }}, {{ article.date }})<br/>
-	{{ article.body_ja }}
-      </div>
-      {% endfor %}
+    {% include "navbar.html" %}
 
-      {% include 'footer.html' %}
-    </div><!--/.container-->
-</body>
+    <div class="container">
+      <div class="row">
+        <div class="span3">
+          <div class="sidebar-nav">
+	    <h4>最近の話題</h4>
+	    <ul class="unstyled">
+	      {% for hottrend in hottrends %}
+	      <li><i class="icon-fire"></i> <a href="http://hiwihhi.com/k/{{ hottrend[1] }}.html">{{ hottrend[0] }}</a></li>
+	      {% if keywords|length > loop.index0 %}
+	      <li><i class="icon-thumbs-up"></i> <a href="http://hiwihhi.com/k/{{ keywords[loop.index0][1] }}.html">{{ keywords[loop.index0][0] }}</a></li>
+              {% endif %}
+	      {% endfor %}
+	    </ul>
+          </div><!--/.sidebar-nav -->
+          <center>{% include "skyscraper.html" %}</center>
+        </div><!--/span-->
+        <div class="span9">
+	  <div class="hero-unit">
+	    <!--<img class="pull-right" src="{{ url_for('static', filename='img/logo_big.png') }}"/>-->
+	    <h2>日本語でおｋ.com</h2>
+	    <p>日本に関係のあるニュースを世界から集めました。</p>
+	    <div style="clear:right;"></div>
+	  </div>
+	  {% for article in articles %}
+	  <div style="margin-bottom:0.5em;">
+	    <a href="http://translate.google.co.jp/translate?sl=en&tl=ja&js=n&prev=_t&hl=ja&ie=UTF-8&layout=2&eotf=1&u={{article.url}}">{{ article.subject_ja }}</a> ({{ article.site_id }}, {{ article.date }})<br/>
+	    <!-- {{ article.id }} -->
+	    {{ article.body_ja|articlehead }}
+	  </div>
+	  {% endfor %}
+        </div><!--/span-->
+      </div><!--/row-->
+
+      {% include "footer.html" %}
+
+    </div><!--/.fluid-container-->
+
+  </body>
 </html>

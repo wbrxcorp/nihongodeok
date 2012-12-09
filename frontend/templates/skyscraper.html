@@ -1,0 +1,14 @@
+{% if adsense_enabled and request.remote_addr != '127.0.0.1' %}
+<script type="text/javascript"><!--
+	 google_ad_client = "pub-7755651108155777";
+	google_ad_slot = "5394910685";
+	google_ad_width = 160;
+	google_ad_height = 600;
+//-->
+</script>
+<script type="text/javascript"
+	src="http://pagead2.googlesyndication.com/pagead/show_ads.js">
+</script>
+{% else %}
+<a href="http://www.walbrix.net/"><img src="/static/img/wb-vertical.png" border="0"/></a>
+{% endif %}

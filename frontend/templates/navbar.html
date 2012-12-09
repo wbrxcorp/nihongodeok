@@ -1,4 +1,13 @@
-    <div class="navbar navbar-inverse navbar-fixed-top">
+    <div id="fb-root"></div>
+    <script>(function(d, s, id) {
+      var js, fjs = d.getElementsByTagName(s)[0];
+      if (d.getElementById(id)) return;
+      js = d.createElement(s); js.id = id;
+      js.src = "//connect.facebook.net/en_US/all.js#xfbml=1";
+      fjs.parentNode.insertBefore(js, fjs);
+      }(document, 'script', 'facebook-jssdk'));</script>
+
+    <div class="navbar navbar-inverse navbar-static-top">
       <div class="navbar-inner">
         <div class="container">
           <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
@@ -6,12 +15,32 @@
             <span class="icon-bar"></span>
             <span class="icon-bar"></span>
           </a>
-          <a class="brand" href="/">日本語でおk.com</a>
+          <a class="brand" href="/"><!--<img src="{{ url_for('static', filename='img/logo_small.png') }}"/> -->日本語でおｋ.com</a> 
           <div class="nav-collapse collapse">
-            <form class="navbar-form pull-right" method="get" action="/search">
-              <input class="span2" type="text" {% if keyword %}value="{{ keyword }}"{% else %}placeholder="キーワード"{% endif %} name="q">
-              <button type="submit" class="btn">検索</button>
-            </form>
+	    <ul class="nav pull-right">
+              <!--Facebook -->
+              <li class="dropdown">
+                <a href="#" class="dropdown-toggle" data-toggle="dropdown"><img width="28" height="28" src="{{ url_for('static', filename='img/f_logo.png') }}"/> Facebook <b class="caret"></b></a>
+                <ul class="dropdown-menu">
+                  <li style="padding:10px;"><div class="fb-like" data-send="false" data-width="200"></div></li>
+                </ul>
+              </li> <!-- dropdown -->
+              <!--Twitter -->
+              <li class="dropdown">
+                <a href="#" class="dropdown-toggle" data-toggle="dropdown"><img width="28" height="28" src="{{ url_for('static', filename='img/twitter-bird-dark-bgs.png') }}"/> Twitter <b class="caret"></b></a>
+                <ul class="dropdown-menu">
+                  <li style="padding:10px;"><a href="https://twitter.com/share" class="twitter-share-button" data-lang="ja">ツイート</a><script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0];if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src="//platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script></li>
+                </ul>
+              </li> <!-- dropdown -->
+              <li>
+		<form class="navbar-search" method="get" action="/search/">
+		  <input class="search-query" type="text" {% if keyword %}value="{{ keyword }}"{% else %}placeholder="キーワード"{% endif 
+%} name="q"/>
+		  <button type="submit" class="btn"><i class="icon-search"></i>検索</button>
+		</form>
+	      </li>
+            </ul>
+
           </div><!--/.nav-collapse -->
         </div>
       </div>

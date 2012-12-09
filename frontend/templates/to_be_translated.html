@@ -4,7 +4,7 @@
 {% for article in articles %}
   <div style="margin-bottom:0.5em;">
     <a href="{{article.id}}">{{ article.subject_en }}</a> ({{ article.site_id }}, {{ article.date }})<br/>
-    scraped at {{article.created_at}} 
+    scraped at {{article.created_at|unixtime2exacttime}} 
   </div>
 {% endfor %}
 </body>

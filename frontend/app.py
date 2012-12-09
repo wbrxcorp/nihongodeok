@@ -3,11 +3,11 @@
 import os
 import sys
 import cgi
+import datetime
 import flask
 import json
 import urllib
 import urllib2
-import MeCab
 import re
 from BeautifulSoup import BeautifulSoup,Comment
 import default_config
@@ -18,15 +18,21 @@ app_dir = os.path.dirname(os.path.abspath( __file__ ))
 config_file = app_dir + "/nihongodeok.conf"
 if os.path.exists(config_file): app.config.from_pyfile(config_file)
 API = app.config["API"]
-NEW_API = app.config["NEW_API"]
+HIWIHHI_API = app.config["HIWIHHI_API"]
 
 def load(path):
     return json.load(urllib2.urlopen(API + path))
 
+def load_hiwihhi(path):
+    return json.load(urllib2.urlopen(HIWIHHI_API + path))
+
 @app.route('/')
 def index():
     articles = load("/latest_articles/ja")
-    return flask.render_template("index.html",articles=articles)
+    hottrends = load_hiwihhi("/hottrends")
+    keywords = load_hiwihhi("/keywords/splitted")
+
+    return flask.render_template("index.html",articles=articles,hottrends=hottrends,keywords=keywords)
 
 @app.route("/tools/scrape")
 def _scrape():
@@ -60,8 +66,7 @@ def _scrape_post():
     script = flask.request.form["script"]
     try:
         result = load("/get_article?url=%s" % urllib2.quote(url))
-        result = result[1]
-        canonical_url = result["canonical_url"]
+        canonical_url = result[0]
 
         exec(script)
         soup = BeautifulSoup(urllib2.urlopen(API + "/cacheable_fetch?url=" + urllib2.quote(canonical_url)).read(),convertEntities=BeautifulSoup.HTML_ENTITIES)
@@ -103,8 +108,6 @@ def show_article(article_id):
     except urllib2.HTTPError, e:
         return "HTTP Error %d during communicating with API" % (e.code), e.code
 
-    if "body_en" in article:
-        article["encoded_body_en"] = re.sub("\n", "<br/>", cgi.escape(article["body_en"]))
     return flask.render_template("show_article.html", article=article)
 
 @app.route("/tools/delete_article", methods=['POST'])
@@ -137,8 +140,6 @@ def translate_get(article_id, message = None):
     except urllib2.HTTPError, e:
         return "HTTP Error %d during communicating with API" % (e.code), e.code
 
-    if "body_en" in article:
-        article["encoded_body_en"] = re.sub("\n", "<br/>", cgi.escape(article["body_en"]))
     return flask.render_template("translate.html", article=article, message=message)
 
 @app.route("/tools/translate/<article_id>", methods=['POST'])
@@ -175,6 +176,22 @@ def ts(script_name):
 @app.route("/search")
 def search():
     return "Not implemented yet"
+
+@app.template_filter("unixtime2exacttime")
+def unixtime2exacttime(t):
+    now = datetime.datetime.fromtimestamp(t / 1000)
+    return now.strftime(u"%Y-%m-%d %H:%M")
+
+@app.template_filter("articletext")
+def articletext(text):
+    return re.sub("\n", "<br/>", cgi.escape(text))
+
+@app.template_filter("articlehead")
+def articlehead(text):
+    shortened = len(text) > 200
+    text = text[:200]
+    if shortened: text += "..."
+    return text
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0',debug=True)
