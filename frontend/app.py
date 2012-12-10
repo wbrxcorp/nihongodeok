@@ -57,6 +57,11 @@ def async_get(url, params = None):
     response, content = http.request(url)
     return AsyncCallToken(response, content)
 
+def async_post(url, params):
+    http = asynchttp.Http()
+    response, content = http.request(url, "POST", urllib.urlencode(encoded_dict(params)), headers = {'Content-type': 'application/x-www-form-urlencoded'})
+    return AsyncCallToken(response, content)
+
 def load_keywords():
     hottrends = async_get(HIWIHHI_API + "/hottrends")
     keywords = async_get(HIWIHHI_API + "/keywords/splitted")
@@ -211,6 +216,46 @@ def translate_post(article_id):
     result = json.load(urllib2.urlopen(req))
     
     return translate_get(article_id)
+
+@app.route("/tools/synonyms/missing")
+def missing_synonyms():
+    sold_keywords = async_get(HIWIHHI_API + "/keywords")
+    synonyms = async_get(API + "/synonyms")
+    sold_keywords = sold_keywords.decode_json()
+    synonyms = synonyms.decode_json()
+
+    keywords = set()
+    for sold_keyword in sold_keywords:
+        kws = re.split(u"[ 　]", sold_keyword[0])
+        for kw in kws:
+            if kw != "": keywords.add(kw)
+
+    missings = []
+    for keyword in keywords:
+        if keyword not in synonyms: missings.append(keyword)
+
+    return flask.render_template("missing_synonyms.html", keywords=missings)
+
+@app.route("/tools/synonyms/edit", methods=['GET'])
+def edit_synonym():
+    keyword = flask.request.args["keyword"]
+    synonyms = async_get(API + "/synonyms", {"q":keyword} )
+    synonyms = synonyms.decode_json()
+    data = {"keyword":keyword}
+    if keyword in synonyms:
+        data["synonyms"] = synonyms[keyword]
+        data["count"] = async_get(API + "/search", {"q":data["synonyms"], "limit":0}).decode_json()[0]
+    else:
+        data["count"] = async_get(API + "/search", {"q":keyword, "limit":0}).decode_json()[0]
+
+    return flask.render_template("edit_synonyms.html", **data)
+
+@app.route("/tools/synonyms/edit", methods=['POST'])
+def post_edit_synonym():
+    keyword = flask.request.form["keyword"]
+    synonyms = flask.request.form["synonyms"]
+    result = async_post(API + "/synonym", {"keyword":keyword,"synonyms":synonyms}).decode_json()
+    return flask.redirect("/tools/synonyms/edit?keyword=%s" % urllib2.quote(keyword.encode("utf-8")) )
 
 @app.route("/ts/<script_name>.js")
 def ts(script_name):

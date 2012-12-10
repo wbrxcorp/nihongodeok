@@ -1,0 +1,11 @@
+<html>
+<body>
+<form method="post" action="edit">
+  キーワード: {{ keyword }} (現状でのヒット件数: {{ count }})<br/>
+  <input type="hidden" name="keyword" value="{{ keyword }}"/>
+  <input type="text" name="synonyms" value="{{ synonyms }}" size="60"/>
+  <input type="submit" value="更新"/>
+</form>
+<a href="missing">一覧へ戻る</a>
+</body>
+</html>
