@@ -2,7 +2,7 @@
 <html lang="ja">
   <head>
     <meta charset="utf-8"/>
-    <title>日本語でおｋ.com</title>
+    <title>{{ keyword }} に関する記事 - 日本語でおｋ.com</title>
     <meta name="description" content="日本に関係のあるニュースを世界から集めました。" />
 
     <!-- Le styles -->
@@ -16,6 +16,9 @@
       }
       .span9 {
         padding-top: 9px;
+      }
+      span.keyword {
+        font-weight: bold;
       }
     </style>
     <script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
@@ -38,19 +41,22 @@
 	    {% include "keywords.html" %}
           </div><!--/.sidebar-nav -->
           <center>{% include "skyscraper.html" %}</center>
+          {% if links %}{% for link in links %}{{ link|safe }}<br/>{% endfor %}{% endif%}
         </div><!--/span-->
         <div class="span9">
-	  <div class="hero-unit">
-	    <!--<img class="pull-right" src="{{ url_for('static', filename='img/logo_big.png') }}"/>-->
-	    <h2>日本語でおｋ.com</h2>
-	    <p>日本に関係のあるニュースを世界から集めました。</p>
-	    <div style="clear:right;"></div>
-	  </div>
-	  {% for article in articles %}
-	  <div style="margin-bottom:0.5em;">
-	    <a href="http://translate.google.co.jp/translate?sl=en&tl=ja&js=n&prev=_t&hl=ja&ie=UTF-8&layout=2&eotf=1&u={{article.url}}">{{ article.subject_ja }}</a> ({{ article.site_id }}, {{ article.date }})<br/>
-	    <!-- {{ article.id }} -->
-	    {{ article.body_ja|articlehead }}
+	  <h2>{{ keyword }} に関する記事</h2>
+
+	  {% for result in results %}
+	  <div style="margin-top:16px;">
+	    <div><a href="{{result.article.url}}">{{ result.article.subject_en }}</a> ({{ result.article.site_id }} {{ result.article.date }})</div>
+	    <div>
+	      {% for snippet in result.snippets["body_en"] %}
+	      ...{{ snippet | safe }}...
+	      {% endfor %}
+	      {% for snippet in result.snippets["body_ja"] %}
+	      ...{{ snippet | safe }}...
+	      {% endfor %}
+	    </div>
 	  </div>
 	  {% endfor %}
         </div><!--/span-->

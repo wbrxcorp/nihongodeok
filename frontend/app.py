@@ -11,6 +11,7 @@ import urllib
 import urllib2
 import re
 from BeautifulSoup import BeautifulSoup,Comment
+import asynchttp
 import default_config
 
 app = flask.Flask(__name__)
@@ -27,11 +28,69 @@ def load(path):
 def load_hiwihhi(path):
     return json.load(urllib2.urlopen(HIWIHHI_API + path))
 
+class AsyncCallToken:
+    def __init__(self, response, content):
+        self.response = response
+        self.content = content
+
+    def decode_json(self):
+        return json.loads(str(self.content))
+
+    def parse_html(self):
+        return BeautifulSoup.BeautifulSoup(str(self.content))
+
+def encoded_dict(in_dict):
+    out_dict = {}
+    for k, v in in_dict.iteritems():
+        if isinstance(v, unicode):
+            v = v.encode('utf8')
+        elif isinstance(v, str):
+            # Must be encoded in UTF-8
+            v.decode('utf8')
+        out_dict[k] = v
+    return out_dict
+
+def async_get(url, params = None):
+    http = asynchttp.Http()
+    if params != None and len(params) > 0:
+        url += "?" + urllib.urlencode(encoded_dict(params))
+    response, content = http.request(url)
+    return AsyncCallToken(response, content)
+
+def load_keywords():
+    hottrends = async_get(HIWIHHI_API + "/hottrends")
+    keywords = async_get(HIWIHHI_API + "/keywords/splitted")
+
+    hottrends = hottrends.decode_json()
+    keywords = keywords.decode_json()
+
+    kwd = {}
+    for hottrend in hottrends:
+        hashcode = hottrend[1]
+        if hashcode not in kwd:
+            kwd[hashcode] = async_get(API + "/search", { "q":hottrend[0],"limit":0 })
+    for keyword in keywords:
+        hashcode = keyword[1]
+        if hashcode not in kwd:
+            kwd[hashcode] = async_get(API + "/search", { "q":keyword[0],"limit":0 })
+
+    for hashcode in kwd:
+        kwd[hashcode] = kwd[hashcode].decode_json()[0]
+
+    for hottrend in hottrends:
+        hashcode = hottrend[1]
+        if hashcode in kwd: hottrend.append(kwd[hashcode])
+        
+    for keyword in keywords:
+        hashcode = keyword[1]
+        if hashcode in kwd: keyword.append(kwd[hashcode])
+
+    return (hottrends, keywords)
+
 @app.route('/')
 def index():
     articles = load("/latest_articles/ja")
-    hottrends = load_hiwihhi("/hottrends")
-    keywords = load_hiwihhi("/keywords/splitted")
+    hottrends, keywords = load_keywords()
 
     return flask.render_template("index.html",articles=articles,hottrends=hottrends,keywords=keywords)
 
@@ -186,6 +245,14 @@ def search():
         data["results"] = results[1]
     data["keyword"] = q
     return flask.render_template("search.html", **data)
+
+@app.route('/k/<hashcode>.html')
+def keyword(hashcode):
+    hottrends, keywords = load_keywords()
+    keyword = load_hiwihhi("/keyword/%s" % hashcode)
+    search_uri = "/search?q=%s&limit=20" % (urllib2.quote(keyword[0].encode("utf-8")))
+    data = { "results":load(search_uri)[1], "keyword":keyword[0],"links":keyword[1],"hottrends":hottrends,"keywords":keywords }
+    return flask.render_template("keyword.html", **data)
 
 @app.template_filter("urlencode")
 def urlencode(text):

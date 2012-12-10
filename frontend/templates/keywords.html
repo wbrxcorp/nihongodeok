@@ -1,0 +1,20 @@
+{% macro keyword(kwd,icon) -%}
+  <li>
+    <i class="{{icon}}"></i>
+    {%if kwd|length > 2 and kwd[2] > 0%}
+      <a href="/k/{{ kwd[1] }}.html">{{ kwd[0] }}</a>({{kwd[2]}})
+    {%else%}
+      <a href="http://hiwihhi.com/k/{{ kwd[1]}}.html">{{ kwd[0] }}</a>
+    {%endif%}
+  </li>
+{%- endmacro %}
+
+	    <h4>最近の話題</h4>
+	    <ul class="unstyled">
+	      {% for hottrend in hottrends %}
+	      {{keyword(hottrend, "icon-fire")}}
+	      {% if keywords|length > loop.index0 %}
+	      {{keyword(keywords[loop.index0], "icon-thumbs-up")}}
+              {% endif %}
+	      {% endfor %}
+	    </ul>
