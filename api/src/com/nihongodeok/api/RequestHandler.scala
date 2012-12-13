@@ -1,22 +1,22 @@
 package com.nihongodeok.api
 
+import java.util.Calendar
+import java.io.{ByteArrayInputStream,ByteArrayOutputStream}
+import java.net.{URL, URLEncoder}
+import javax.servlet.http.{HttpServletRequest,HttpServletResponse}
+import collection.JavaConversions.{asScalaBuffer,asScalaIterator}
 import org.springframework.stereotype.Controller
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.bind.annotation.{RequestMapping, PathVariable,RequestParam, RequestMethod, ResponseBody}
-import javax.servlet.http.{HttpServletRequest,HttpServletResponse}
-import com.fasterxml.jackson.annotation.JsonProperty
-import collection.JavaConversions.asScalaBuffer
-import java.util.Calendar
-import com.fasterxml.jackson.databind.ObjectMapper
 import org.jsoup.Jsoup
-import java.io.ByteArrayInputStream
 import org.apache.http.client.methods.HttpGet
 import org.apache.http.impl.client.DefaultHttpClient
-import java.io.ByteArrayOutputStream
-import org.tukaani.xz.SingleXZInputStream
-import org.tukaani.xz.XZOutputStream
-import org.tukaani.xz.X86Options
-import org.tukaani.xz.LZMA2Options
+import org.tukaani.xz.{XZInputStream,SingleXZInputStream,XZOutputStream,X86Options,LZMA2Options}
+import com.fasterxml.jackson.annotation.JsonProperty
+import com.fasterxml.jackson.databind.{ObjectMapper,JsonNode}
+import org.apache.http.HttpHost
+import org.apache.http.client.methods.HttpUriRequest
+import org.apache.http.protocol.{BasicHttpContext,ExecutionContext}
 
 @Controller
 @RequestMapping(Array(""))
@@ -35,6 +35,11 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 	    @JsonProperty(value="subject_ja") subjectJa:Option[String] = None,
 	    @JsonProperty(value="body_ja") bodyJa:Option[String] = None,
 	    @JsonProperty(value="canonical_url") canonicalURL:Option[String] = None)
+	
+	case class SearchResult(
+	    article:Article,
+	    snippets:Map[String,Seq[String]]
+	)
 
 	implicit def date2string(date:java.sql.Date):String = {
 	  val cal = java.util.Calendar.getInstance()
@@ -51,7 +56,9 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 	        createdAt=row.get("created_at").asInstanceOf[java.sql.Timestamp],
 	        scrapedBy=row.get("scraped_by").asInstanceOf[String],
 	        subjectEn=row.get("subject_en").asInstanceOf[String],
-	        bodyEn=row.get("body_en").asInstanceOf[String])	  
+	        bodyEn=row.get("body_en").asInstanceOf[String],
+	        subjectJa=Option(row.get("subject_ja").asInstanceOf[String]),	  
+	        bodyJa=Option(row.get("body_ja").asInstanceOf[String]))	  
 	}
 
 	@RequestMapping(value=Array("get_article/{articleId}"), method = Array(RequestMethod.GET))
@@ -64,7 +71,7 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 	}
 	
 	def decompressXZ(src:Array[Byte]):Array[Byte] = {
-	  val is = new SingleXZInputStream(new ByteArrayInputStream(src))
+	  val is = new XZInputStream(new ByteArrayInputStream(src))
 	  val buf = new Array[Byte](1024)
 	  val baos = new ByteArrayOutputStream()
 	  var i = is.read(buf)
@@ -80,23 +87,28 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 	  val os = new XZOutputStream(baos, Array(new X86Options(),new LZMA2Options()))
 	  os.write(src)
 	  os.flush()
+	  os.close()
 	  return baos.toByteArray
 	}
 	
-	def _cacheableFetch(url:String, ttl:Int = 3600):(String,Array[Byte]) = {
-	  jdbcTemplate.queryForList("select content_type,contents from contents_cache where id=sha1(?) and created_at >= date_sub(now(), interval ? second)", url, ttl.asInstanceOf[Integer]).headOption.foreach {row=>
-	    return (row.get("content_type").asInstanceOf[String], decompressXZ(row.get("contents").asInstanceOf[Array[Byte]]))
+	def _cacheableFetch(url:String, ttl:Int = 3600):(String,Array[Byte], String) = {
+	  jdbcTemplate.queryForList("select content_type,contents,real_url from contents_cache where id=sha1(?) and created_at >= date_sub(now(), interval ? second)", url, ttl.asInstanceOf[Integer]).headOption.foreach {row=>
+	    return (row.get("content_type").asInstanceOf[String], decompressXZ(row.get("contents").asInstanceOf[Array[Byte]]), row.get("real_url").asInstanceOf[String])
 	  }
 	  val httpClient = new DefaultHttpClient()
+	  val httpContext = new BasicHttpContext()
 	  val httpGet = new HttpGet(url)
-	  val response = httpClient.execute(httpGet)
+	  val response = httpClient.execute(httpGet, httpContext)
+	  val currentReq = httpContext.getAttribute(ExecutionContext.HTTP_REQUEST).asInstanceOf[HttpUriRequest]
+	  val currentHost = httpContext.getAttribute(ExecutionContext.HTTP_TARGET_HOST).asInstanceOf[HttpHost]
+	  val realURL = if (currentReq.getURI().isAbsolute()) { currentReq.getURI().toString() } else { currentHost.toURI() + currentReq.getURI() }
 	  val baos = new ByteArrayOutputStream()
 	  val entity = response.getEntity()
 	  val contentType = entity.getContentType().getValue()
 	  entity.writeTo(baos)
 	  val content = baos.toByteArray()
-	  jdbcTemplate.update("replace into contents_cache(id,content_type,contents,created_at) values(sha1(?), ?, ?, now())", url, contentType, content)
-	  (contentType, compressXZ(content))
+	  jdbcTemplate.update("replace into contents_cache(id,real_url,content_type,contents,created_at) values(sha1(?), ?, ?, ?, now())", url, realURL, contentType, compressXZ(content))
+	  (contentType, content, realURL)
 	} 
 	
 	@RequestMapping(value=Array("get_article"), method = Array(RequestMethod.GET))
@@ -106,21 +118,21 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 	  jt.queryForList("select * from articles where id=sha1(?)", url).headOption.foreach { x=> return (url, Some(x))}
 
 	  val canonicalURL = jt.queryForList("select canonical_url from canonical_urls where url_id=sha1(?)", classOf[String], url).headOption.getOrElse {
-	    val (contnetType, content) = _cacheableFetch(url)
-	    val doc = Jsoup.parse(new ByteArrayInputStream(content), "UTF-8", url)
+	    val (contnetType, content, realURL) = _cacheableFetch(url)
+	    val doc = Jsoup.parse(new ByteArrayInputStream(content), "UTF-8", realURL)
 	    Option(doc.select("head > link[rel=canonical]").first()).map { x=>
 	      val canonicalURL = x.attr("href")
 	      jt.update("replace into canonical_urls(url_id,canonical_url) values(sha1(?),?)", url, canonicalURL)
 	      canonicalURL
-	    }.getOrElse(null)
+	    }.getOrElse {
+	      if (!url.equals(realURL)) {
+	    	jt.update("replace into canonical_urls(url_id,canonical_url) values(sha1(?),?)", url, realURL)
+	      }
+	      realURL
+	    }
 	  }
 	  
-	  Option(canonicalURL) match {
-	    case Some(canonicalURL) =>
-	    	jt.queryForList("select * from articles where id=sha1(?)", canonicalURL).headOption.map { row=> 
-	    	(canonicalURL, Some(row2article(row))) }.getOrElse((canonicalURL, None))
-	    case None => ( url, None)
-	  }
+	  (canonicalURL, jt.queryForList("select * from articles where id=sha1(?)", canonicalURL).headOption.map(row2article))
 	}
 
 	@RequestMapping(value=Array("push_article"), method = Array(RequestMethod.POST))
@@ -148,11 +160,11 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 	@ResponseBody
 	def list():Map[String,Seq[(String,Int)]] = {
 		val scrapers = jdbcTemplate.queryForList("select scraped_by,count(scraped_by) cnt from articles group by scraped_by").map { row=>
-			(row.get("scraped_by").asInstanceOf[String], row.get("cnt").asInstanceOf[Int])
+			(row.get("scraped_by").asInstanceOf[String], row.get("cnt").asInstanceOf[Long].toInt)
 		}.toSeq
 
 		val sites = jdbcTemplate.queryForList("select site_id,count(site_id) cnt from articles group by site_id").map { row=>
-			(row.get("site_id").asInstanceOf[String], row.get("cnt").asInstanceOf[Int])
+			(row.get("site_id").asInstanceOf[String], row.get("cnt").asInstanceOf[Long].toInt)
 		}.toSeq
 
 		Map("scrapers"->scrapers, "sites"->sites)
@@ -160,21 +172,21 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 
 	@RequestMapping(value=Array("latest_articles"), method = Array(RequestMethod.GET))
 	@ResponseBody
-	def latestArticles(@RequestParam(value="site_id", required=false) siteId:String,
-	    @RequestParam(value="scraped_by", required=false) scrapedBy:String,
+	def latestArticles(@RequestParam(value="site_id", defaultValue="") siteId:String,
+	    @RequestParam(value="scraped_by", defaultValue="") scrapedBy:String,
 	    @RequestParam(value="limit",defaultValue="100") limit:Int):Seq[Article] = {
 	  val jt = jdbcTemplate
-      ((Option(siteId),Option(scrapedBy)) match {
-        case (Some(siteId), Some(scrapedBy)) => 
+      asScalaBuffer((siteId.nonEmpty,scrapedBy.nonEmpty) match {
+        case (true, true) => 
           jt.queryForList("select * from articles where site_id=? and scraped_by=? order by created_at desc limit ?", 
               siteId, scrapedBy, limit.asInstanceOf[Integer])
-        case (Some(siteId), None) => 
+        case (true, false) => 
           jt.queryForList("select * from articles where site_id=? order by created_at desc limit ?", 
               siteId, limit.asInstanceOf[Integer])
-        case (None, Some(scrapedBy)) => 
+        case (false, true) => 
           jt.queryForList("select * from articles where scraped_by=? order by created_at desc limit ?", 
               scrapedBy, limit.asInstanceOf[Integer])
-        case (None, None) => 
+        case (false, false) => 
           jt.queryForList("select * from articles order by created_at desc limit ?", limit.asInstanceOf[Integer])
       }).map { row=> row2article(row) }
 	}
@@ -189,7 +201,7 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 	@RequestMapping(value=Array("/articles_to_be_translated"), method = Array(RequestMethod.GET))
 	@ResponseBody
 	def articlesToBeTranslated():Seq[Article] = 
-	  jdbcTemplate.queryForList("select * from articles where ((subject_ja is null or subject_ja = '') or (body_jais null or body_ja = '')) and (match(subject_en) against('+Japan' in boolean mode) OR match(subject_ja) against('+Japan' in boolean mode)) order by article_date desc,created_at desc").map { row=>
+	  jdbcTemplate.queryForList("select * from articles where (subject_ja = '' or body_ja = '') and (match(subject_en) against('+Japan' in boolean mode) OR match(body_en) against('+Japan' in boolean mode)) order by article_date desc,created_at desc").map { row=>
 	  	row2article(row)
 	  }
 
@@ -208,7 +220,7 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 	@ResponseBody
 	def deleteArticle(response:HttpServletResponse, 
 	    @RequestParam(value="article_id",required=true) articleId:String):(Boolean,Option[AnyRef]) =
-	  (jdbcTemplate.update("delete from articles where article_id=?", articleId) > 0, None)
+	  (jdbcTemplate.update("delete from articles where id=?", articleId) > 0, None)
 
 	@RequestMapping(value=Array("statistics"), method = Array(RequestMethod.GET))
 	@ResponseBody
@@ -230,8 +242,65 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 
 	@RequestMapping(value=Array("cacheable_fetch"), method = Array(RequestMethod.GET))
 	def cacheableFetch(response:HttpServletResponse, @RequestParam(value="url",required=true) url:String) = {
-	  val (contentType, content) = _cacheableFetch(url)
+	  val (contentType, content, realURL) = _cacheableFetch(url)
 	  response.setContentType(contentType)
 	  response.getOutputStream().write(content)
 	}
+	
+	@RequestMapping(value=Array("search"), method=Array(RequestMethod.GET))
+	@ResponseBody
+	def search(@RequestParam(value="q",required=true) q:String,
+	    @RequestParam(value="offset", defaultValue="0") offset:Int,
+	    @RequestParam(value="limit", defaultValue="10") limit:Int,
+	    @RequestParam(value="order_by", defaultValue="-_score") orderBy:String):(Int, Seq[SearchResult]) = {
+	  val groongaHost = "localhost"
+	  val groongaPort = 10041
+	  
+	  def urlencode(value:String):String = { URLEncoder.encode(value, "UTF-8")}
+	  val snippetExpr = "body_en" // "subject_en+body_en+subject_ja+body_ja"
+	  val url = "http://%s:%d/d/select?table=%s&query=%s&query_expansion=synonyms.words&command_version=2&match_columns=%s&offset=%d&limit=%d&sortby=%s&output_columns=%s"
+	    .format(groongaHost, groongaPort,"articles",urlencode(q),"subject_en||body_en||subject_ja||body_ja", offset, limit, orderBy, 
+	        urlencode("id,url,site_id,article_date,created_at,scraped_by,subject_en,body_en," +
+	        		"snippet_html(subject_en),snippet_html(body_en),snippet_html(subject_ja),snippet_html(body_ja)"))
+	  //println(url)
+	  val results = new ObjectMapper().readTree(new URL(url))
+	  val count = results.get(1).get(0).get(0).get(0).asInt()
+	  
+	  implicit def double2datestr(value:Double):String = { new java.sql.Date((value * 1000).toLong) }
+	  implicit def double2timestamp(value:Double):java.sql.Timestamp = { new java.sql.Timestamp((value * 1000).toLong) }
+	  val iter = results.get(1).get(0).elements()
+	  iter.next()
+	  iter.next()
+	  implicit def node2strseq(value:JsonNode):Seq[String] = value.iterator.toSeq.map {x=>x.asText()}
+	  (count, iter.toSeq.map { elem=> 
+	    SearchResult(
+	        article=Article(id=elem.get(0).asText(),url=elem.get(1).asText(),siteId=elem.get(2).asText(),
+	        	date=({x:JsonNode => if (x.isNull) { None } else { Some[String](x.asDouble()) }})(elem.get(3)),
+	        	createdAt=elem.get(4).asDouble(),
+	        	scrapedBy=elem.get(5).asText(),subjectEn=elem.get(6).asText(),
+	        	bodyEn=elem.get(7).asText()),
+	        snippets=Map("subject_en"->elem.get(8),
+	            "body_en"->elem.get(9),
+	            "subject_ja"->elem.get(10),
+	            "body_ja"->elem.get(11))
+          )
+	  })
+	}
+
+	@RequestMapping(value=Array("synonyms"), method=Array(RequestMethod.GET))
+	@ResponseBody
+	def synonyms(@RequestParam(value="q", defaultValue="") q:String):Map[String,String] = {
+	  asScalaBuffer(q.isEmpty match {
+	    case true => jdbcTemplate.queryForList("select id,words from synonyms order by id")
+	    case false => jdbcTemplate.queryForList("select id,words from synonyms where id like ? order by id", "%" + q + "%")
+	  }).map { row=> (row.get("id").asInstanceOf[String], row.get("words").asInstanceOf[String])}.toMap
+	}
+
+	@RequestMapping(value=Array("synonym"), method=Array(RequestMethod.POST))
+	@ResponseBody
+	def updateSynonym(@RequestParam(value="keyword",required=true) keyword:String,
+	    @RequestParam(value="synonyms", required=true) synonyms:String):(Boolean, Option[AnyRef]) = {
+	  (jdbcTemplate.update("replace into synonyms(id,words) values(?,?)", keyword, synonyms) > 0, None)
+	}
+
 }
