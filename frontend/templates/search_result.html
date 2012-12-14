@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <title>検索結果 - 日本語でおｋ.com</title>
+
+    <!-- Le styles -->
+    <link href="/static/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/static/css/bootstrap-responsive.min.css" rel="stylesheet">
+    <style>
+      body {
+        padding-top: 0px; /* 60px to make the container go all the way to the bottom of the topbar */
+      }
+      span.keyword {
+        font-weight:bold;
+      }
+    </style>
+
+    <!-- HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    {% include "analytics.html" %}
+  </head>
+
+  <body>
+    {% include "navbar.html" %}
+    <div class="container" style="padding-top:16px;">
+      {% if keyword == "" %}
+      検索キーワードを入力してください
+      {% else %}
+      <div><strong>{{ keyword }}</strong> の検索結果 {{ count }}件</div>
+
+      {% macro pagination(page,count) -%}
+      {% set max_page = (count - 1) // 10 + 1 %}
+      {% if max_page > 10 %}
+      <ul class="pager">
+	{% if page > 1 %}<li><a href="search?q={{keyword|urlencode}}{%if page > 2%}&page={{page-1}}{%endif%}">前へ</a></li>{% endif %}
+	{{page}}/{{max_page}}ページ
+	{% if page < max_page %} <li><a href="search?q={{keyword|urlencode}}&page={{page+1}}">次へ</a></li>{% endif %}
+      </ul>
+      {% elif max_page > 1 %}
+      <div class="pagination pagination-centered">
+	<ul>
+	  <li{% if page < 2 %} class="disabled"{%endif%}><a href="search?q={{keyword|urlencode}}{% if page > 2 %}{{page-1}}{%endif%}">&laquo;</a></li>
+	  {% for i in range(1,max_page+1) %}
+	  <li{% if page == i%} class="active"{%endif%}><a href="search?q={{keyword|urlencode}}{%if i > 1%}&page={{i}}{%endif%}">{{i}}</a></li>
+	  {% endfor %}
+	  <li{% if page >= max_page %} class="disabled"{%endif%}><a href="search?q={{keyword|urlencode}}&page={{page+1}}">&raquo;</a></li>
+	</ul>
+      </div>
+      {% endif %}
+      {%- endmacro %}
+      {{ pagination(page, count) }}
+
+      {% for result in results %}
+      <div style="margin-top:16px;">
+	<div><a href="{{result.article.url}}">{{ result.article.subject_en }}</a> ({{ result.article.site_id }} {{ result.article.date }})</div>
+	<div>
+	{% for snippet in result.snippets["body_en"] %}
+	...{{ snippet | safe }}...
+	{% endfor %}
+	{% for snippet in result.snippets["body_ja"] %}
+	...{{ snippet | safe }}...
+	{% endfor %}
+	</div>
+      </div>
+      {% endfor %}
+
+      {{ pagination(page, count) }}
+
+      {% endif %}
+
+      {% include "footer.html" %}
+    </div> <!-- /container -->
+  </body>
+</html>

@@ -280,6 +280,8 @@ def ts(script_name):
 
 @app.route("/search")
 def search():
+    if "q" not in flask.request.args:
+        return flask.render_template("search.html")
     q = flask.request.args["q"]
     page = int(flask.request.args["page"]) if "page" in flask.request.args else 1
     search_uri = "/search?q=%s&offset=%d&limit=10" % (urllib2.quote(q.encode("utf-8")), (page - 1) * 10)
@@ -289,7 +291,7 @@ def search():
         data["count"] = results[0]
         data["results"] = results[1]
     data["keyword"] = q
-    return flask.render_template("search.html", **data)
+    return flask.render_template("search_result.html", **data)
 
 @app.route('/k/<hashcode>.html')
 def keyword(hashcode):
