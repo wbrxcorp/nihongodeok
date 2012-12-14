@@ -1,0 +1,9 @@
+<html>
+<body>
+<ul>
+  {% for keyword in keywords %}
+  <li><a href="edit?keyword={{ keyword|urlencode }}">{{ keyword }}</a></li>
+  {% endfor %}
+</ul>
+</body>
+</html>
