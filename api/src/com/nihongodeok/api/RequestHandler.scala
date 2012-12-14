@@ -22,7 +22,10 @@ import org.apache.http.protocol.{BasicHttpContext,ExecutionContext}
 @RequestMapping(Array(""))
 @Transactional
 class RequestHandler extends AnyRef with DataSourceSupport {
-  
+
+	val groongaHost = "localhost"
+	val groongaPort = 10041
+
 	case class Article(
 	    id:String, 
 	    url:String,
@@ -201,7 +204,7 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 	@RequestMapping(value=Array("/articles_to_be_translated"), method = Array(RequestMethod.GET))
 	@ResponseBody
 	def articlesToBeTranslated():Seq[Article] = 
-	  jdbcTemplate.queryForList("select * from articles where (subject_ja = '' or body_ja = '') and (match(subject_en) against('+Japan' in boolean mode) OR match(body_en) against('+Japan' in boolean mode)) order by article_date desc,created_at desc").map { row=>
+	  jdbcTemplate.queryForList("select * from articles where (subject_ja = '' or body_ja = '') and (match(subject_en) against('+Japan' in boolean mode) OR match(body_en) against('+Japan' in boolean mode)) order by article_date desc,created_at desc limit 10").map { row=>
 	  	row2article(row)
 	  }
 
@@ -253,8 +256,6 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 	    @RequestParam(value="offset", defaultValue="0") offset:Int,
 	    @RequestParam(value="limit", defaultValue="10") limit:Int,
 	    @RequestParam(value="order_by", defaultValue="-_score") orderBy:String):(Int, Seq[SearchResult]) = {
-	  val groongaHost = "localhost"
-	  val groongaPort = 10041
 	  
 	  def urlencode(value:String):String = { URLEncoder.encode(value, "UTF-8")}
 	  val snippetExpr = "body_en" // "subject_en+body_en+subject_ja+body_ja"
@@ -285,6 +286,13 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 	            "body_ja"->elem.get(11))
           )
 	  })
+	}
+
+	@RequestMapping(value=Array("clear_query_cache"), method=Array(RequestMethod.POST))
+	@ResponseBody
+	def clearQueryCache(@RequestParam(value="table_name", required=true) tableName:String):Tuple1[Boolean] = {
+	    val url = "http://%s:%d/d/load?table=%s&values=%5B%5D".format(groongaHost, groongaPort, tableName)
+	    Tuple1(new ObjectMapper().readTree(new URL(url)).get(0).get(0).asInt() == 0)
 	}
 
 	@RequestMapping(value=Array("synonyms"), method=Array(RequestMethod.GET))
