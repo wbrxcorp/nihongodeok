@@ -85,6 +85,8 @@ class Article:
             raise Exception("Subject(subject) is empty. url=%s" % self.url)
         if not hasattr(self, "body") or self.body == None:
             raise Exception("Article body(body) is not set.")
+        if not isinstance(self.body, basestring):
+             raise Exception("Article body(body) must not be other than string type. given type=%s" % type(self.body))
         if normalize(self.body) == "":
             raise Exception("Article body(body) is empty. url=%s" % self.url)
         if not hasattr(self, "language") or self.language == None:
