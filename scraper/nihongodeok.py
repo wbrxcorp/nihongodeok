@@ -7,10 +7,9 @@ import datetime
 import urllib2
 from BeautifulSoup import BeautifulSoup
 
-api_base = "http://search.local:8000/"
-http_proxy = "search.local:3128"
+api_base = "http://api.nihongodeok.com/0.1/"
 
-VERSION="0.1.5"
+VERSION="0.1.6"
 
 __CONFIG_FILE = os.path.dirname(os.path.abspath( __file__ )) + "/nihongodeok.conf"
 
@@ -58,15 +57,15 @@ class Article:
     def _get_canonical_url(self):
         result = json.load(urllib2.urlopen(api_base + "/get_article?url=%s" % urllib2.quote(self.url)))
         # warn if canonical url is different from original
-        if not result[0]: raise Exception("Something wrong happened in database: %s" % result[1])
+        canonical_url = result[0]
         result = result[1]
-        canonical_url = result["canonical_url"]
         if self.url != canonical_url:
             print "Canonical URL(%s) is different from given URL(%s)!" % (canonical_url, self.url)
             self.url = canonical_url
         self.canonical = True
         #print result
-        self.already_exist = ("article" in result)
+        self.already_exist = (result is not None)
+
     def is_already_exist(self):
         if not self.canonical: self._get_canonical_url()
         return self.already_exist

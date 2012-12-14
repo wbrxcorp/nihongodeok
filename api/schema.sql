@@ -1,9 +1,3 @@
-create table canonical_urls(
-  url_id char(40) charset latin1,
-  canonical_url text,
-  primary key(url_id)
-);
-
 CREATE TABLE `articles` (
   `id` char(40) CHARACTER SET latin1 NOT NULL DEFAULT '',
   `url` varchar(255) NOT NULL,
@@ -24,4 +18,25 @@ CREATE TABLE `articles` (
   FULLTEXT KEY `articles_body_en` (`body_en`),
   FULLTEXT KEY `articles_subject_ja` (`subject_ja`),
   FULLTEXT KEY `articles_body_ja` (`body_ja`)
+) ENGINE=mroonga DEFAULT CHARSET=utf8;
+
+CREATE TABLE `canonical_urls` (
+  `url_id` char(40) CHARACTER SET latin1 NOT NULL DEFAULT '',
+  `canonical_url` text,
+  PRIMARY KEY (`url_id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+CREATE TABLE `contents_cache` (
+  `id` char(40) CHARACTER SET latin1 NOT NULL DEFAULT '',
+  `content_type` varchar(64) CHARACTER SET latin1 DEFAULT NULL,
+  `contents` blob,
+  `created_at` datetime DEFAULT NULL,
+  `real_url` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+CREATE TABLE `synonyms` (
+  `id` varchar(255) NOT NULL,
+  `words` varchar(1024) NOT NULL,
+  PRIMARY KEY (`id`)
 ) ENGINE=mroonga DEFAULT CHARSET=utf8;
