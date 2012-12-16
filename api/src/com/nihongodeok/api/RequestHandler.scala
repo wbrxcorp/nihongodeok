@@ -98,13 +98,24 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 	  jdbcTemplate.queryForList("select content_type,contents,real_url from contents_cache where id=sha1(?) and created_at >= date_sub(now(), interval ? second)", url, ttl.asInstanceOf[Integer]).headOption.foreach {row=>
 	    return (row.get("content_type").asInstanceOf[String], decompressXZ(row.get("contents").asInstanceOf[Array[Byte]]), row.get("real_url").asInstanceOf[String])
 	  }
+	  def removeUtmParams(url:String):String = {
+		  val splitted = url.split("\\?",2)
+		  if (splitted.length > 1) {
+			  val filteredParams = splitted(1).split("&").filter(!_.startsWith("utm_"))
+			  if (filteredParams.length > 0) { 
+			    splitted(0) + '?' + (filteredParams mkString "&")
+			  } else splitted(0)
+		  } else {
+			  return url 
+		  }
+	  }
 	  val httpClient = new DefaultHttpClient()
 	  val httpContext = new BasicHttpContext()
 	  val httpGet = new HttpGet(url)
 	  val response = httpClient.execute(httpGet, httpContext)
 	  val currentReq = httpContext.getAttribute(ExecutionContext.HTTP_REQUEST).asInstanceOf[HttpUriRequest]
 	  val currentHost = httpContext.getAttribute(ExecutionContext.HTTP_TARGET_HOST).asInstanceOf[HttpHost]
-	  val realURL = if (currentReq.getURI().isAbsolute()) { currentReq.getURI().toString() } else { currentHost.toURI() + currentReq.getURI() }
+	  val realURL = removeUtmParams(if (currentReq.getURI().isAbsolute()) { currentReq.getURI().toString() } else { currentHost.toURI() + currentReq.getURI() })
 	  val baos = new ByteArrayOutputStream()
 	  val entity = response.getEntity()
 	  val contentType = entity.getContentType().getValue()
