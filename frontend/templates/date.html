@@ -48,7 +48,7 @@
 
 	  {% for article in articles %}
 	  <div style="margin-top:16px;">
-	    <div><a href="{{article.url}}">{{ article.subject_ja }}</a> ({% if article.subject_ja != "" and article.subject_ja != ""%}<a href="/site/{{ article.site_id|urlencode }}/">{{ article.site_id }}</a>{% else %}{{ article.site_id }}{% endif %})</div>
+	    <div><a href="{% if article.subject_en != "" and article.body_en != "" %}/article/{{article.id}}.html{% else %}{{ article.url }}{% endif %}">{{ article.subject_ja }}</a> ({% if article.subject_ja != "" and article.subject_ja != ""%}<a href="/site/{{ article.site_id|urlencode }}/">{{ article.site_id }}</a>{% else %}{{ article.site_id }}{% endif %})</div>
 	    <div>
 	      {{ article.body_ja|articlehead }}
 	    </div>

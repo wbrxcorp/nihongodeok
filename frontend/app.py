@@ -365,6 +365,11 @@ def keyword(hashcode):
     data = { "results":results, "keyword":keyword[0],"links":keyword[1],"hottrends":hottrends,"keywords":keywords }
     return flask.render_template("keyword.html", **data)
 
+@app.route("/article/<article_id>.html")
+def article(article_id):
+    article = load("/get_article/%s" % article_id)
+    return flask.render_template("article.html", article=article)
+
 @app.route("/site/<site_id>/")
 def by_site(site_id):
     hottrends, keywords = load_keywords()
