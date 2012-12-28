@@ -48,7 +48,7 @@
 	  </div>
 	  {% for article in articles %}
 	  <div style="margin-bottom:0.5em;">
-	    <a href="http://translate.google.co.jp/translate?sl=en&tl=ja&js=n&prev=_t&hl=ja&ie=UTF-8&layout=2&eotf=1&u={{article.url}}">{{ article.subject_ja }}</a> ({{ article.site_id }}, {{ article.date }})<br/>
+	    <a href="http://translate.google.co.jp/translate?sl=en&tl=ja&js=n&prev=_t&hl=ja&ie=UTF-8&layout=2&eotf=1&u={{article.url|urlencode}}">{{ article.subject_ja }}</a> (<a href="/site/{{article.site_id|urlencode}}">{{ article.site_id }}</a>, {{ article.date }})<br/>
 	    <!-- {{ article.id }} -->
 	    {{ article.body_ja|articlehead }}
 	  </div>

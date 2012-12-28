@@ -51,7 +51,7 @@
 	    <div><a href="{{result.article.url}}">{{ result.subject|safe }}</a> ({{ result.article.site_id }} {{ result.article.date }})</div>
 	    <div>
 	      {% if result.snippets == None %}
-	        { result.body|articlehead }
+	        {{ result.body|articlehead }}
 	      {% else %}
 	        {% for snippet in result.snippets %}
 	        ...{{ snippet | safe }}...

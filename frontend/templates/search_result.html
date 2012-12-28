@@ -57,12 +57,13 @@
       <div style="margin-top:16px;">
 	<div><a href="{{result.article.url}}">{{ result.subject|safe }}</a> ({{ result.article.site_id }} {{ result.article.date }})</div>
 	<div>
-	{% for snippet in result.snippets["body_en"] %}
-	...{{ snippet | safe }}...
-	{% endfor %}
-	{% for snippet in result.snippets["body_ja"] %}
-	...{{ snippet | safe }}...
-	{% endfor %}
+	      {% if result.snippets == None %}
+	        {{ result.body|articlehead }}
+	      {% else %}
+	        {% for snippet in result.snippets %}
+	        ...{{ snippet | safe }}...
+	        {% endfor %}
+	      {% endif %}
 	</div>
       </div>
       {% endfor %}

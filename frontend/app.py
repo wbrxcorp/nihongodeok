@@ -64,7 +64,7 @@ def async_post(url, params):
 
 def load_keywords():
     hottrends = async_get(HIWIHHI_API + "/hottrends")
-    keywords = async_get(HIWIHHI_API + "/keywords/splitted")
+    keywords = async_get(HIWIHHI_API + "/keywords/splitted?offset=1")
 
     hottrends = hottrends.decode_json()
     keywords = keywords.decode_json()
@@ -355,9 +355,15 @@ def keyword(hashcode):
     data = { "results":results, "keyword":keyword[0],"links":keyword[1],"hottrends":hottrends,"keywords":keywords }
     return flask.render_template("keyword.html", **data)
 
+@app.route("/site/<site_id>/")
+def site(site_id):
+    hottrends, keywords = load_keywords()
+    articles = load("/latest_articles/ja?site_id=%s" % urllib2.quote(site_id.encode("utf-8")))
+    return flask.render_template("site.html", site_id=site_id,articles=articles,hottrends=hottrends,keywords=keywords)
+
 @app.template_filter("urlencode")
 def urlencode(text):
-    return werkzeug.urls.url_quote_plus(text)
+    return werkzeug.urls.url_quote(text)
 
 @app.template_filter("unixtime2exacttime")
 def unixtime2exacttime(t):
