@@ -2,7 +2,7 @@
 <html lang="ja">
   <head>
     <meta charset="utf-8"/>
-    <title>{{ keyword }} に関する記事 - 日本語でおｋ.com</title>
+    <title>{{ date }} の記事 - 日本語でおｋ.com</title>
     <meta name="description" content="日本に関係のあるニュースを世界から集めました。" />
 
     <!-- Le styles -->
@@ -44,19 +44,13 @@
           {% if links %}{% for link in links %}{{ link|safe }}<br/>{% endfor %}{% endif%}
         </div><!--/span-->
         <div class="span9">
-	  <h2>{{ keyword }} に関する記事</h2>
+	  <h2>{{ date }} の記事</h2>
 
-	  {% for result in results %}
+	  {% for article in articles %}
 	  <div style="margin-top:16px;">
-	    <div><a href="{{result.article.url}}">{{ result.subject|safe }}</a> ({% if result.article.subject_ja != "" and result.article.subject_ja != ""%}<a href="/site/{{ result.article.site_id|urlencode }}/">{{ result.article.site_id }}</a> <a href="/date/{{ result.article.date|replace('-','') }}/">{{ result.article.date }}</a>{% else %}{{ result.article.site_id }} {{ result.article.date }}{% endif %})</div>
+	    <div><a href="{{article.url}}">{{ article.subject_ja }}</a> ({% if article.subject_ja != "" and article.subject_ja != ""%}<a href="/site/{{ article.site_id|urlencode }}/">{{ article.site_id }}</a>{% else %}{{ article.site_id }}{% endif %})</div>
 	    <div>
-	      {% if result.snippets == None %}
-	        {{ result.body|articlehead }}
-	      {% else %}
-	        {% for snippet in result.snippets %}
-	        ...{{ snippet | safe }}...
-	        {% endfor %}
-	      {% endif %}
+	      {{ article.body_ja|articlehead }}
 	    </div>
 	  </div>
 	  {% endfor %}

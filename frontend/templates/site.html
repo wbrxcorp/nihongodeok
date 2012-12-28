@@ -48,7 +48,7 @@
 
 	  {% for article in articles %}
 	  <div style="margin-top:16px;">
-	    <div><a href="{{article.url}}">{{ article.subject_ja }}</a> ({{ article.date }})</div>
+	    <div><a href="{{article.url}}">{{ article.subject_ja }}</a> ({% if article.subject_ja != "" and article.subject_ja != ""%}<a href="/date/{{ article.date|replace('-','') }}/">{{ article.date }}</a>{% else %}{{ article.date }}{% endif %})</div>
 	    <div>
 	      {{ article.body_ja|articlehead }}
 	    </div>

@@ -366,10 +366,20 @@ def keyword(hashcode):
     return flask.render_template("keyword.html", **data)
 
 @app.route("/site/<site_id>/")
-def site(site_id):
+def by_site(site_id):
     hottrends, keywords = load_keywords()
     articles = load("/latest_articles/ja?site_id=%s" % urllib2.quote(site_id.encode("utf-8")))
     return flask.render_template("site.html", site_id=site_id,articles=articles,hottrends=hottrends,keywords=keywords)
+
+@app.route("/date/<date>/")
+def by_date(date):
+    if not re.compile("^[0-9]{8}$").match(date):
+        return "Bad date format", 400
+    date = date[:4] + '-' + date[4:6] + '-' + date[6:8]
+    hottrends, keywords = load_keywords()
+    articles = load("/latest_articles/ja?date=%s" % urllib2.quote(date.encode("utf-8")))
+    return flask.render_template("date.html", date=date,articles=articles,hottrends=hottrends,keywords=keywords)
+    
 
 @app.template_filter("urlencode")
 def urlencode(text):
