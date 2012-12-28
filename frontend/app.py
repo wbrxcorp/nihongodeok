@@ -99,6 +99,16 @@ def index():
 
     return flask.render_template("index.html",articles=articles,hottrends=hottrends,keywords=keywords)
 
+@app.route('/favicon.ico')
+def favicon():
+    return flask.send_from_directory(os.path.join(app.root_path, 'static'),
+                               'favicon.ico', mimetype='image/vnd.microsoft.icon')
+
+@app.route('/robots.txt')
+def robots():
+    return flask.send_from_directory(os.path.join(app.root_path, 'static'),
+                               'robots.txt', mimetype='text/plain')
+
 @app.route("/tools/scrape")
 def _scrape():
     script = """def scrape(soup):
