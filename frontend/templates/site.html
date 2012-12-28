@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8"/>
+    <title>{{ site_id }} の新着記事 - 日本語でおｋ.com</title>
+    <meta name="description" content="日本に関係のあるニュースを世界から集めました。" />
+
+    <!-- Le styles -->
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet"/>
+    <style type="text/css">
+      body {
+        padding-bottom: 40px;
+      }
+      .sidebar-nav {
+        padding: 9px 0;
+      }
+      .span9 {
+        padding-top: 9px;
+      }
+      span.keyword {
+        font-weight: bold;
+      }
+    </style>
+    <script src="{{ url_for('static', filename='js/jquery.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+
+    <!-- Le HTML5 shim, for IE6-8 support of HTML5 elements -->
+    <!--[if lt IE 9]>
+      <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    {% include "analytics.html" %}
+  </head>
+
+  <body>
+    {% include "navbar.html" %}
+
+    <div class="container">
+      <div class="row">
+        <div class="span3">
+          <div class="sidebar-nav">
+	    {% include "keywords.html" %}
+          </div><!--/.sidebar-nav -->
+          <center>{% include "skyscraper.html" %}</center>
+          {% if links %}{% for link in links %}{{ link|safe }}<br/>{% endfor %}{% endif%}
+        </div><!--/span-->
+        <div class="span9">
+	  <h2>{{ site_id }} の新着記事</h2>
+
+	  {% for article in articles %}
+	  <div style="margin-top:16px;">
+	    <div><a href="{{article.url}}">{{ article.subject_ja }}</a> ({{ article.date }})</div>
+	    <div>
+	      {{ article.body_ja|articlehead }}
+	    </div>
+	  </div>
+	  {% endfor %}
+        </div><!--/span-->
+      </div><!--/row-->
+
+      {% include "footer.html" %}
+
+    </div><!--/.fluid-container-->
+
+  </body>
+</html>
