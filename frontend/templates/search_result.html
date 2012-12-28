@@ -55,7 +55,7 @@
 
       {% for result in results %}
       <div style="margin-top:16px;">
-	<div><a href="{{result.article.url}}">{{ result.article.subject_en }}</a> ({{ result.article.site_id }} {{ result.article.date }})</div>
+	<div><a href="{{result.article.url}}">{{ result.subject|safe }}</a> ({{ result.article.site_id }} {{ result.article.date }})</div>
 	<div>
 	{% for snippet in result.snippets["body_en"] %}
 	...{{ snippet | safe }}...

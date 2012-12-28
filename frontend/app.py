@@ -217,6 +217,28 @@ def translate_post(article_id):
     
     return translate_get(article_id)
 
+@app.route("/tools/edit_article/<language>", methods=['GET'])
+def edit_article(language):
+    return flask.render_template("edit_article.html")
+
+@app.route("/tools/edit_article/<language>", methods=['POST'])
+def edit_article_post(language):
+    url = flask.request.form["url"]
+    subject = flask.request.form["subject"]
+    body = flask.request.form["body"]
+    scraped_by = flask.request.form["scraped_by"]
+    site_id = flask.request.form["site_id"]
+    date = flask.request.form["date"]
+    request_body = json.dumps({"url":url, "language":language, 
+                               "subject":subject, "body":body, 
+                               "scraped_by":scraped_by,
+                               "site_id":site_id, "date":date})
+    req = urllib2.Request(API + "/push_article", data=request_body, headers={'Content-type': 'application/json'})
+    result = json.load(urllib2.urlopen(req))
+    if result[1] == None: return "Failed"
+    #else
+    return flask.redirect("/tools/edit_article/%s/%s" % (result[1], language))    
+
 @app.route("/tools/synonyms/missing")
 def missing_synonyms():
     sold_keywords = async_get(HIWIHHI_API + "/keywords")
@@ -278,6 +300,32 @@ def ts(script_name):
 
     return flask.send_file("%s/ts/%s.js" % (app_dir, script_name), "text/javascript")
 
+def complement_search_result(result):
+    article = result["article"]
+    snippets = result["snippets"]
+    subject = cgi.escape(article["subject_en"])
+    if len(snippets["subject_en"]) > 0:
+        subject = snippets["subject_en"][0]
+    subject_ja = article["subject_ja"]
+    if subject_ja != None and subject_ja != "":
+        subject = cgi.escape(subject_ja)
+    if len(snippets["subject_ja"]) > 0:
+        subject = snippets["subject_ja"][0]        
+    result["subject"] = subject
+
+    body = article["body_en"]
+    body_ja = article["body_ja"]
+    if body_ja != None and body_ja != "":
+        body = body_ja
+    result["body"] = body
+
+    new_snippets = []
+    new_snippets += snippets["body_ja"]
+    new_snippets += snippets["body_en"]
+    new_snippets = new_snippets[:3]
+
+    result["snippets"] = new_snippets if len(new_snippets) > 0 else None
+
 @app.route("/search")
 def search():
     if "q" not in flask.request.args:
@@ -290,6 +338,8 @@ def search():
         results = load(search_uri)
         data["count"] = results[0]
         data["results"] = results[1]
+        for result in results[1]: complement_search_result(result)
+
     data["keyword"] = q
     return flask.render_template("search_result.html", **data)
 
@@ -298,7 +348,11 @@ def keyword(hashcode):
     hottrends, keywords = load_keywords()
     keyword = load_hiwihhi("/keyword/%s" % hashcode)
     search_uri = "/search?q=%s&limit=20" % (urllib2.quote(keyword[0].encode("utf-8")))
-    data = { "results":load(search_uri)[1], "keyword":keyword[0],"links":keyword[1],"hottrends":hottrends,"keywords":keywords }
+
+    results = load(search_uri)[1]
+    for result in results: complement_search_result(result)
+
+    data = { "results":results, "keyword":keyword[0],"links":keyword[1],"hottrends":hottrends,"keywords":keywords }
     return flask.render_template("keyword.html", **data)
 
 @app.template_filter("urlencode")
