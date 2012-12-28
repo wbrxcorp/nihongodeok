@@ -4,7 +4,7 @@
     {%if kwd|length > 2 and kwd[2] > 0%}
       <a href="/k/{{ kwd[1] }}.html">{{ kwd[0] }}</a>({{kwd[2]}})
     {%else%}
-      <a href="http://hiwihhi.com/k/{{ kwd[1]}}.html">{{ kwd[0] }}</a>
+      {{ kwd[0] }}
     {%endif%}
   </li>
 {%- endmacro %}
