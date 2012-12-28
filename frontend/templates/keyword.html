@@ -48,7 +48,7 @@
 
 	  {% for result in results %}
 	  <div style="margin-top:16px;">
-	    <div><a href="{{result.article.url}}">{{ result.subject|safe }}</a> ({{ result.article.site_id }} {{ result.article.date }})</div>
+	    <div><a href="{{result.article.url}}">{{ result.subject|safe }}</a> ({% if result.article.subject_ja != "" and result.article.subject_ja != ""%}<a href="/site/{{ result.article.site_id|urlencode }}/">{{ result.article.site_id }}</a>{% else %}{{ result.article.site_id }}{% endif %} {{ result.article.date }})</div>
 	    <div>
 	      {% if result.snippets == None %}
 	        {{ result.body|articlehead }}
