@@ -48,7 +48,7 @@
 
 	  {% for result in results %}
 	  <div style="margin-top:16px;">
-	    <div><a href="{% if result.article.subject_en != "" and result.article.body_en != "" %}/article/{{result.article.id}}.html{% else %}{{ result.article.url }}{% endif %}">{{ result.subject|safe }}</a> ({% if result.article.subject_ja != "" and result.article.subject_ja != ""%}<a href="/site/{{ result.article.site_id|urlencode }}/">{{ result.article.site_id }}</a> <a href="/date/{{ result.article.date|replace('-','') }}/">{{ result.article.date }}</a>{% else %}{{ result.article.site_id }} {{ result.article.date }}{% endif %})</div>
+	    <div><a href="{% if result.article.subject_en != "" and result.article.body_en != "" and result.article.subject_ja != "" and result.article.body_ja != "" %}/article/{{result.article.id}}.html{% else %}{{ result.article.url }}{% endif %}">{{ result.subject|safe }}</a> ({% if result.article.subject_ja != "" and result.article.subject_ja != ""%}<a href="/site/{{ result.article.site_id|urlencode }}/">{{ result.article.site_id }}</a> <a href="/date/{{ result.article.date|replace('-','') }}/">{{ result.article.date }}</a>{% else %}{{ result.article.site_id }} {{ result.article.date }}{% endif %})</div>
 	    <div>
 	      {% if result.snippets == None %}
 	        {{ result.body|articlehead }}
