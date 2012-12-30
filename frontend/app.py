@@ -21,6 +21,9 @@ config_file = app_dir + "/nihongodeok.conf"
 if os.path.exists(config_file): app.config.from_pyfile(config_file)
 API = app.config["API"]
 HIWIHHI_API = app.config["HIWIHHI_API"]
+PAGECAPTURE = app.config["PAGECAPTURE"]
+PAGECAPTURE_EXTERNAL = app.config["PAGECAPTURE_EXTERNAL"]
+PAGECAPTURE_REQUEST = PAGECAPTURE + app.config["PAGECAPTURE_REQUEST"]
 
 def load(path):
     return json.load(urllib2.urlopen(API + path))
@@ -60,6 +63,13 @@ def async_get(url, params = None):
 def async_post(url, params):
     http = asynchttp.Http()
     response, content = http.request(url, "POST", urllib.urlencode(encoded_dict(params)), headers = {'Content-type': 'application/x-www-form-urlencoded'})
+    return AsyncCallToken(response, content)
+
+def async_head(url, params = None):
+    http = asynchttp.Http()
+    if params != None and len(params) > 0:
+        url += "?" + urllib.urlencode(encoded_dict(params))
+    response, content = http.request(url, "HEAD")
     return AsyncCallToken(response, content)
 
 def load_keywords():
@@ -368,6 +378,16 @@ def keyword(hashcode):
 @app.route("/article/<article_id>.html")
 def article(article_id):
     article = load("/get_article/%s" % article_id)
+    url = article["url"]
+
+    pagecapture_path = "/%s/%s.png" % (article_id[:2], article_id)
+    img_exists = async_head(PAGECAPTURE + pagecapture_path)
+    pagecapture = None
+    if img_exists.response.status == 200:
+        pagecapture = PAGECAPTURE_EXTERNAL + pagecapture_path
+    else:
+        async_post(PAGECAPTURE_REQUEST, {"url":url})
+
     return flask.render_template("article.html", article=article)
 
 @app.route("/site/<site_id>/")
