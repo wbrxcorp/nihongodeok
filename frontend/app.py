@@ -388,7 +388,7 @@ def article(article_id):
     else:
         async_post(PAGECAPTURE_REQUEST, {"url":url})
 
-    return flask.render_template("article.html", article=article)
+    return flask.render_template("article.html", article=article,pagecapture=pagecapture)
 
 @app.route("/site/<site_id>/")
 def by_site(site_id):

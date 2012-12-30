@@ -25,6 +25,12 @@
   <body>
     {% include "navbar.html" %}
     <div class="container" style="padding-top:16px;">
+      {% if pagecapture %}
+      <div class="pull-right well" style="margin:0.5em;padding:0.5em;">
+	<a href="{{ article.url }}" target="_blank"><img src="{{pagecapture}}"/><br/>
+	<small>クリックで原文を別ウィンドウ表示</small></a>
+      </div>
+      {% endif %}
       <h2>{% if article.subject_ja != "" %}{{ article.subject_ja }}{% else %}{{ article.subject_en }}{% endif %}</h2>
       <p>原題: {{ article.subject_en }}</p>
       <h3><a href="/site/{{article.site_id|urlencode}}">{{ article.site_id }}</a>, <a href="/date/{{article.date|replace('-','')}}">{{ article.date }}</a></h3>
@@ -33,6 +39,7 @@
       <p>{{ article.body_en|articlehead }}</p>
       <a href="http://translate.google.co.jp/translate?sl=en&tl=ja&js=n&prev=_t&hl=ja&ie=UTF-8&layout=2&eotf=1&u={{article.url|urlencode}}" class="btn btn-large btn-primary">全文を表示（翻訳） &raquo;</a>
       <a href="{{ article.url }}" class="btn btn-large">全文を表示（原文） &raquo;</a>
+      <div style="clear:right;"></div>
       {% include "footer.html" %}
     </div> <!-- /container -->
   </body>
