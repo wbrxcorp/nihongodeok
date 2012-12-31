@@ -102,6 +102,9 @@ def load_keywords():
 
     return (hottrends, keywords)
 
+def request_clear_query_cache(table_name):
+    async_post(API + "/clear_query_cache", {"table_name":table_name})
+
 @app.route('/')
 def index():
     articles = load("/latest_articles/ja")
@@ -259,6 +262,7 @@ def new_article_post(language):
     result = json.load(urllib2.urlopen(req))
     if result[1] == None: return "Failed"
     #else
+    request_clear_query_cache("articles")
     return flask.redirect("/tools/edit_article/%s/%s" % (result[1], language))
 
 @app.route("/tools/edit_article/<article_id>/<language>", methods=['GET'])
@@ -310,6 +314,7 @@ def post_edit_synonym():
     keyword = flask.request.form["keyword"]
     synonyms = flask.request.form["synonyms"]
     result = async_post(API + "/synonym", {"keyword":keyword,"synonyms":synonyms}).decode_json()
+    request_clear_query_cache("articles")
     return flask.redirect("/tools/synonyms/edit?keyword=%s" % urllib2.quote(keyword.encode("utf-8")) )
 
 @app.route("/ts/<script_name>.js")
