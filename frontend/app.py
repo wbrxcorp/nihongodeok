@@ -237,18 +237,20 @@ def translate_post(article_id):
     
     return translate_get(article_id)
 
-@app.route("/tools/edit_article/<language>", methods=['GET'])
-def edit_article(language):
-    return flask.render_template("edit_article.html")
+@app.route("/tools/new_article/<language>", methods=['GET'])
+def new_article(language):
+    return flask.render_template("new_article.html")
 
-@app.route("/tools/edit_article/<language>", methods=['POST'])
-def edit_article_post(language):
+@app.route("/tools/new_article/<language>", methods=['POST'])
+def new_article_post(language):
     url = flask.request.form["url"]
     subject = flask.request.form["subject"]
     body = flask.request.form["body"]
     scraped_by = flask.request.form["scraped_by"]
     site_id = flask.request.form["site_id"]
     date = flask.request.form["date"]
+    if url =="" or subject == "" or body == "" or scraped_by == "" or site_id == "" or date == "":
+        return "Bad Reqeust", 400
     request_body = json.dumps({"url":url, "language":language, 
                                "subject":subject, "body":body, 
                                "scraped_by":scraped_by,
@@ -257,7 +259,18 @@ def edit_article_post(language):
     result = json.load(urllib2.urlopen(req))
     if result[1] == None: return "Failed"
     #else
-    return flask.redirect("/tools/edit_article/%s/%s" % (result[1], language))    
+    return flask.redirect("/tools/edit_article/%s/%s" % (result[1], language))
+
+@app.route("/tools/edit_article/<article_id>/<language>", methods=['GET'])
+def edit_article(article_id, language):
+    article = load("/get_article/%s" % article_id)
+    subject = article["subject_" + language]
+    body = article["body_" + language]
+    return flask.render_template("edit_article.html", language=language,article=article, subject=subject, body=body)
+
+@app.route("/tools/edit_article/<article_id>/<language>", methods=['POST'])
+def edit_article_post(article_id, language):
+    pass
 
 @app.route("/tools/synonyms/missing")
 def missing_synonyms():

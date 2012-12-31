@@ -3,26 +3,27 @@
 <form method="POST">
   <table border="1">
     <tr>
-      <th>URL</th><td><input type="text" name="url" size="80"/></td>
+      <th>URL</th><td><a href="{{ article.url }}">{{ article.url }}</a></td>
     </tr>
     <tr>
-      <th>Subject</th><td><input type="text" name="subject" size="80"/></td>
+      <th>Website ID</th><td>{{ article.site_id }}</td>
     </tr>
     <tr>
-      <th>body</th><td><textarea name="body" cols="80" rows="25"></textarea></td>
+      <th>Date</th><td>{{ article.date }}</td>
     </tr>
     <tr>
-      <th>scraped by</th><td><input type="text" name="scraped_by"/></td>
+      <th>Subject</th><td><input type="text" name="subject" size="80" value="{{ subject }}"/></td>
     </tr>
     <tr>
-      <th>Website ID</th><td><input type="text" name="site_id"/></td>
+      <th>body</th><td><textarea name="body" cols="80" rows="25">{{ body }}</textarea></td>
     </tr>
     <tr>
-      <th>Date (YYYY-MM-DD)</th><td><input type="text" name="date"/></td>
+      <th>scraped by</th><td>{{ article.scraped_by }}</td>
     </tr>
   </table>
   <input type="submit"/>
 </form>
+<a href="/tools/new_article/{{ language }}">Enter new article</a>
 
 </body>
 </html>
