@@ -403,7 +403,7 @@ def article(article_id):
     url = article["url"]
 
     pagecapture_path = "/%s/%s.png" % (article_id[:2], article_id)
-    img_exists = async_head(pagecapture_base + pagecapture_path)
+    img_exists = async_head(nihongodeok.pagecapture_base + pagecapture_path)
     pagecapture = None
     if img_exists.response.status == 200:
         pagecapture = nihongodeok.pagecapture_external_base + pagecapture_path
