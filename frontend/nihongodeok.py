@@ -73,7 +73,7 @@ def async_get_related_articles(article_id):
     return async_get(api_base + "/related_articles/%s" % article_id)
 
 def extract_keyphrase(text):
-    params = {"appid":yahoo_application_id,"sentence":text.encode("utf-8"),"output":"json"}
+    params = {"appid":yahoo_application_id,"sentence":text[:10000].encode("utf-8"),"output":"json"}
     req = urllib2.Request("http://jlp.yahooapis.jp/KeyphraseService/V1/extract", urllib.urlencode(params))
     return json.load(urllib2.urlopen(req))
 
