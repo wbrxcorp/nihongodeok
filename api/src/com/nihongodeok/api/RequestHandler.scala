@@ -64,11 +64,23 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 	        bodyJa=Option(row.get("body_ja").asInstanceOf[String]))	  
 	}
 
+	def getArticle(articleId:String):Option[Article] = { 
+	  (articleId.length() match {
+		  case 16 =>
+		    jdbcTemplate.queryForList("select * from articles where id like ?", articleId + '%')
+		  case _ =>
+		    jdbcTemplate.queryForList("select * from articles where id=?", articleId)
+	  }).headOption match {
+	    case Some(row) => Some(row)
+	    case None => None
+      }
+	}
+	
 	@RequestMapping(value=Array("get_article/{articleId}"), method = Array(RequestMethod.GET))
 	@ResponseBody
 	def getArticle(response:HttpServletResponse, @PathVariable articleId:String):Article = {
-	  jdbcTemplate.queryForList("select * from articles where id=?", articleId).headOption match {
-	    case Some(row) => row
+	  getArticle(articleId) match {
+	    case Some(article) => article
 	    case None => response.sendError(HttpServletResponse.SC_NOT_FOUND); null
 	  }
 	}
@@ -151,11 +163,12 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 
 	@RequestMapping(value=Array("push_article"), method = Array(RequestMethod.POST))
 	@ResponseBody
-	def pushArticle(request:HttpServletRequest, response:HttpServletResponse):(Boolean,Option[AnyRef]) = {
+	def pushArticle(request:HttpServletRequest, response:HttpServletResponse):(Boolean,Option[String]) = {
 	  if (!request.getContentType().equals("application/json")) {
 	    response.sendError(HttpServletResponse.SC_BAD_REQUEST)
 	    return (false, None)
 	  }
+	  	  
 	  val mapper = new ObjectMapper()
 	  val json = mapper.readTree(request.getInputStream())
 	  val url = json.get("url").asText()
@@ -165,9 +178,10 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 	  val scrapedBy = json.get("scraped_by").asText()
 	  val siteId = json.get("site_id").asText()
 	  val date = json.get("date").asText()
+	  val articleId = jdbcTemplate.queryForObject("select sha1(?)", classOf[String], url);
 
 	  (jdbcTemplate.update("insert into articles(id,url,article_date,subject_" + language + ",body_" + language + ",site_id,scraped_by,created_at)" +
-	  		" values(sha1(?), ?,?,?,?,?,?,now())", url, url, date, subject, body, siteId, scrapedBy) > 0, None)
+	  		" values(?, ?,?,?,?,?,?,now())", articleId, url, date, subject, body, siteId, scrapedBy) > 0, Some(articleId))
 	}
 
 	@RequestMapping(value=Array("list"), method = Array(RequestMethod.GET))
@@ -207,10 +221,19 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 
 	@RequestMapping(value=Array("/latest_articles/ja"), method = Array(RequestMethod.GET))
 	@ResponseBody
-	def latestArticlesJa(@RequestParam(value="page", defaultValue="1") page:Int):Seq[Article] = 
-	  jdbcTemplate.queryForList("select * from articles where (subject_ja is not null and subject_ja != '') and (body_ja is not null and body_ja != '') order by article_date desc,created_at desc limit 20").map { row=>
-	  	row2article(row)
-	  }
+	def latestArticlesJa(@RequestParam(value="site_id", defaultValue="") siteId:String,
+	    @RequestParam(value="date", defaultValue="") date:String,
+	    @RequestParam(value="page", defaultValue="1") page:Int):Seq[Article] = 
+	  asScalaBuffer((siteId.nonEmpty,date.nonEmpty) match {
+	    case (true, true) =>
+	      jdbcTemplate.queryForList("select * from articles where (subject_ja is not null and subject_ja != '') and (body_ja is not null and body_ja != '') and site_id=? and article_date=? order by created_at desc limit 20", siteId.toLowerCase(), date)
+	    case (true, false) =>
+	      jdbcTemplate.queryForList("select * from articles where (subject_ja is not null and subject_ja != '') and (body_ja is not null and body_ja != '') and site_id=? order by article_date desc,created_at desc limit 20", siteId.toLowerCase())
+	    case (false, true) =>
+	      jdbcTemplate.queryForList("select * from articles where (subject_ja is not null and subject_ja != '') and (body_ja is not null and body_ja != '') and article_date=? order by created_at desc limit 20", date)
+	    case (false, false) =>
+	      jdbcTemplate.queryForList("select * from articles where (subject_ja is not null and subject_ja != '') and (body_ja is not null and body_ja != '') order by article_date desc,created_at desc limit 20")
+	  }).map { row=> row2article(row) }
 
 	@RequestMapping(value=Array("/articles_to_be_translated"), method = Array(RequestMethod.GET))
 	@ResponseBody
@@ -275,7 +298,7 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 	  val snippetExpr = "body_en" // "subject_en+body_en+subject_ja+body_ja"
 	  val url = "http://%s:%d/d/select?table=%s&query=%s&query_expansion=synonyms.words&command_version=2&match_columns=%s&offset=%d&limit=%d&sortby=%s&output_columns=%s"
 	    .format(groongaHost, groongaPort,"articles",urlencode(q),"subject_en||body_en||subject_ja||body_ja", offset, limit, orderBy, 
-	        urlencode("id,url,site_id,article_date,created_at,scraped_by,subject_en,body_en," +
+	        urlencode("id,url,site_id,article_date,created_at,scraped_by,subject_en,body_en,subject_ja,body_ja," +
 	        		"snippet_html(subject_en),snippet_html(body_en),snippet_html(subject_ja),snippet_html(body_ja)"))
 	  //println(url)
 	  val results = new ObjectMapper().readTree(new URL(url))
@@ -292,12 +315,13 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 	        article=Article(id=elem.get(0).asText(),url=elem.get(1).asText(),siteId=elem.get(2).asText(),
 	        	date=({x:JsonNode => if (x.isNull) { None } else { Some[String](x.asDouble()) }})(elem.get(3)),
 	        	createdAt=elem.get(4).asDouble(),
-	        	scrapedBy=elem.get(5).asText(),subjectEn=elem.get(6).asText(),
-	        	bodyEn=elem.get(7).asText()),
-	        snippets=Map("subject_en"->elem.get(8),
-	            "body_en"->elem.get(9),
-	            "subject_ja"->elem.get(10),
-	            "body_ja"->elem.get(11))
+	        	scrapedBy=elem.get(5).asText(),
+	        	subjectEn=elem.get(6).asText(), bodyEn=elem.get(7).asText(),
+	        	subjectJa=Some(elem.get(8).asText()), bodyJa=Some(elem.get(9).asText())),
+	        snippets=Map("subject_en"->elem.get(10),
+	            "body_en"->elem.get(11),
+	            "subject_ja"->elem.get(12),
+	            "body_ja"->elem.get(13))
           )
 	  })
 	}
@@ -305,7 +329,7 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 	@RequestMapping(value=Array("clear_query_cache"), method=Array(RequestMethod.POST))
 	@ResponseBody
 	def clearQueryCache(@RequestParam(value="table_name", required=true) tableName:String):Tuple1[Boolean] = {
-	    val url = "http://%s:%d/d/load?table=%s&values=%5B%5D".format(groongaHost, groongaPort, tableName)
+	    val url = "http://%s:%d/d/load?table=%s&values=%s".format(groongaHost, groongaPort, tableName, "[]")
 	    Tuple1(new ObjectMapper().readTree(new URL(url)).get(0).get(0).asInt() == 0)
 	}
 
@@ -325,4 +349,127 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 	  (jdbcTemplate.update("replace into synonyms(id,words) values(?,?)", keyword, synonyms) > 0, None)
 	}
 
+	@RequestMapping(value=Array("bag_of_words/{article_id}"), method=Array(RequestMethod.POST))
+	@ResponseBody
+	def bagOfWords(response:HttpServletResponse, @PathVariable(value="article_id") articleId:String,
+	    @RequestParam(value="words_en") wordsEn:String,
+	    @RequestParam(value="words_ja") wordsJa:String):(Boolean, Option[AnyRef]) = {
+    	jdbcTemplate.queryForList("select * from articles where id=?", articleId).headOption match {
+    	  case Some(row) => 
+    	    //val createdAt = row.get("created_at").asInstanceOf[java.sql.Timestamp]
+    	    //val date = row.get("article_date").asInstanceOf[java.sql.Date]
+    	    val rst = jdbcTemplate.update("replace into bag_of_words(article_id,words_en,words_ja) values(?,?,?)", articleId, wordsEn, wordsJa)
+    	    (rst > 0, None)
+    	  case None => 
+    	    response.sendError(HttpServletResponse.SC_NOT_FOUND);
+    	    (false, None)
+    	}
+	}
+
+    case class RelatedArticle(
+	    id:String, 
+	    url:String,
+	    @JsonProperty(value="site_id") siteId:String,
+	    date:Option[String],
+	    @JsonProperty(value="subject_en") subjectEn:Option[String] = None,
+	    @JsonProperty(value="body_en") bodyEn:Option[String] = None,
+	    @JsonProperty(value="subject_ja") subjectJa:Option[String] = None,
+	    @JsonProperty(value="body_ja") bodyJa:Option[String] = None)
+
+	@RequestMapping(value=Array("related_articles/{article_id}"), method=Array(RequestMethod.GET))
+	@ResponseBody
+	def relatedArticles(response:HttpServletResponse, @PathVariable(value="article_id") articleId:String,
+	    @RequestParam(value="limit", defaultValue="5") limit:Int,
+	    @RequestParam(value="language",required=false) language:String):Seq[RelatedArticle] = {
+	  getArticle(articleId) match {
+	    case Some(article) =>
+	      jdbcTemplate.queryForList("select words_en from bag_of_words where article_id=?", articleId).headOption match {
+	        case Some(row) =>
+		      jdbcTemplate.queryForList("select match(words_en) against(?) as score,id,url,site_id,article_date,subject_en,body_en,subject_ja,body_ja from bag_of_words,articles where article_id=id and id != ? order by score desc limit ?", row.get("words_en"), articleId, limit.asInstanceOf[Integer]).map { row =>
+		    	RelatedArticle(id=row.get("id").asInstanceOf[String],
+		            url=row.get("url").asInstanceOf[String],
+		            siteId=row.get("site_id").asInstanceOf[String],
+		            date=Option(row.get("article_date").asInstanceOf[java.sql.Date]),
+		            subjectEn=Option(row.get("subject_en").asInstanceOf[String]),
+		            bodyEn=Option(row.get("body_en").asInstanceOf[String]),
+		            subjectJa=Option(row.get("subject_ja").asInstanceOf[String]),
+		            bodyJa=Option(row.get("body_ja").asInstanceOf[String]))
+		      }
+	        case None => Seq()
+	      }
+	    case None => response.sendError(HttpServletResponse.SC_NOT_FOUND); null
+	  }
+	}
+
+    case class UserProfile ()
+ 
+	@RequestMapping(value=Array("user/{external_id}"), method=Array(RequestMethod.POST))
+	@ResponseBody
+	def getUser(@PathVariable(value="external_id") externalId:String):(Int,UserProfile) = {
+      jdbcTemplate.update("insert ignore into users(external_id,created_at) values(?,now())", externalId)
+      val userId = jdbcTemplate.queryForInt("select id from users where external_id=?", externalId)
+      jdbcTemplate.update("insert ignore into user_profiles(user_id, updated_at) values(?,now())", userId.asInstanceOf[Integer])
+      (userId, UserProfile())
+	}
+
+    case class Interpretation (subject:Option[String] = None, summary:Option[String] = None,
+        commentary:Option[String] = None,
+        @JsonProperty(value="commentary_format") commentaryFormat:Option[String] = None, 
+        @JsonProperty(value="user_profile") userProfile:Option[UserProfile] = None)
+
+    @RequestMapping(value=Array("article/{articleId}/interpretation"), method = Array(RequestMethod.GET))
+	@ResponseBody
+	def getInterpretations(response:HttpServletResponse, @PathVariable articleId:String):Seq[Interpretation] = {
+      Seq(Interpretation(userProfile=Some(UserProfile())))
+	}
+
+    @RequestMapping(value=Array("article/{articleId}/interpretation/{userId}"), method = Array(RequestMethod.GET))
+	@ResponseBody
+	def getInterpretation(response:HttpServletResponse, @PathVariable articleId:String, @PathVariable userId:Int):Interpretation = {
+      jdbcTemplate.queryForList("select * from interpretations where article_id=? and user_id=?", 
+          articleId, userId.asInstanceOf[Integer]).headOption match {
+        case Some(row) => Interpretation(
+            subject = Option(row.get("subject").asInstanceOf[String]),
+            summary = Option(row.get("summary").asInstanceOf[String]),
+            commentary = Option(row.get("commentary").asInstanceOf[String]),
+            commentaryFormat = Option(row.get("commentary_format").asInstanceOf[String]) )
+        case None => response.sendError(HttpServletResponse.SC_NOT_FOUND); null
+      }
+	}
+
+    @RequestMapping(value=Array("article/{_articleId}/interpretation/{userId}"), method = Array(RequestMethod.POST))
+	@ResponseBody
+	def postInterpretation(response:HttpServletResponse, @PathVariable _articleId:String, @PathVariable userId:Int,
+	    @RequestParam(value="subject") subject:String,
+	    @RequestParam(value="summary") summary:String,
+	    @RequestParam(value="commentary") commentary:String,
+	    @RequestParam(value="commentary_format") commentaryFormat:String,
+	    @RequestParam(value="public") public:java.lang.Boolean):(Boolean, Option[AnyRef]) = {
+      val articleId = getArticle(_articleId) match {
+        case Some(article) => article.id
+        case None =>
+        	response.sendError(HttpServletResponse.SC_NOT_FOUND)
+        	return (false, None)
+      }
+      jdbcTemplate.update("insert ignore into interpretations(article_id,user_id,created_at,public) values(?,?,now(),false)", articleId, userId.asInstanceOf[Integer])
+      if (subject != null) {
+    	  jdbcTemplate.update("update interpretation set subject=? where article_id=? and user_id=?", subject, articleId, userId.asInstanceOf[Integer])
+      }
+      if (summary != null) {
+    	  jdbcTemplate.update("update interpretation set summary=? where article_id=? and user_id=?", summary, articleId, userId.asInstanceOf[Integer])
+      }
+      if (commentary != null) {
+    	  jdbcTemplate.update("update interpretation set commentary=? where article_id=? and user_id=?", commentary, articleId, userId.asInstanceOf[Integer])
+      }
+      if (commentaryFormat != null) {
+    	  jdbcTemplate.update("update interpretation set commentary_format=? where article_id=? and user_id=?", commentaryFormat, articleId, userId.asInstanceOf[Integer])
+      }
+      if (public != null) {
+    	  jdbcTemplate.update("update interpretation set public=? where article_id=? and user_id=?", public, articleId, userId.asInstanceOf[Integer])
+      }
+      jdbcTemplate.update("update interpretation set updated_at=now() where article_id=? and user_id=?", articleId, userId.asInstanceOf[Integer])
+      (true, None)
+	}
+
+    
 }

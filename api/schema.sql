@@ -40,3 +40,35 @@ CREATE TABLE `synonyms` (
   `words` varchar(1024) NOT NULL,
   PRIMARY KEY (`id`)
 ) ENGINE=mroonga DEFAULT CHARSET=utf8;
+
+CREATE TABLE bag_of_words (
+	article_id char(40) CHARACTER SET latin1 NOT NULL primary key,
+	words_en text,
+	words_ja text,
+	fulltext(words_en),
+	fulltext(words_ja)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8;
+
+CREATE TABLE users (
+	id serial primary key,
+	external_id varchar(255) CHARACTER SET latin1 not null unique,
+	created_at datetime not null
+) ENGINE=InnoDB CHARSET=utf8;
+
+CREATE TABLE user_profiles (
+    user_id int primary key,
+    updated_at datetime
+) ENGINE=InnoDB CHARSET=utf8;
+
+CREATE TABLE interpretations (
+	article_id char(40) CHARACTER SET latin1 NOT NULL,
+	user_id int NOT NULL,
+	subject text,
+	summary text,
+	commentary text,
+	commentary_format varchar(16),
+	created_at datetime not null,
+	updated_at datetime,
+	public boolean not null default false,
+	primary key(user_id,article_id)
+) ENGINE=InnoDB CHARSET=utf8;
