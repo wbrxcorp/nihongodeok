@@ -44,13 +44,33 @@ def encoded_dict(in_dict):
         out_dict[k] = v
     return out_dict
 
+def async_get(url, params = None):
+    http = asynchttp.Http()
+    if params != None and len(params) > 0:
+        url += "?" + urllib.urlencode(encoded_dict(params))
+    response, content = http.request(url)
+    return AsyncCallToken(response, content)
+
 def async_post(url, params):
     http = asynchttp.Http()
     response, content = http.request(url, "POST", urllib.urlencode(encoded_dict(params)), headers = {'Content-type': 'application/x-www-form-urlencoded'})
     return AsyncCallToken(response, content)
 
+def async_head(url, params = None):
+    http = asynchttp.Http()
+    if params != None and len(params) > 0:
+        url += "?" + urllib.urlencode(encoded_dict(params))
+    response, content = http.request(url, "HEAD")
+    return AsyncCallToken(response, content)
+
 def get_article(article_id):
     return json.load(urllib2.urlopen(api_base + "/get_article/%s" % article_id))
+
+def async_get_article(article_id):
+    return async_get(api_base + "/get_article/%s" % article_id)
+
+def async_get_related_articles(article_id):
+    return async_get(api_base + "/related_articles/%s" % article_id)
 
 def extract_keyphrase(text):
     params = {"appid":yahoo_application_id,"sentence":text.encode("utf-8"),"output":"json"}

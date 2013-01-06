@@ -23,50 +23,9 @@ def load(path):
 def load_hiwihhi(path):
     return json.load(urllib2.urlopen(nihongodeok.hiwihhi_api_base + path))
 
-class AsyncCallToken:
-    def __init__(self, response, content):
-        self.response = response
-        self.content = content
-
-    def decode_json(self):
-        return json.loads(str(self.content))
-
-    def parse_html(self):
-        return BeautifulSoup.BeautifulSoup(str(self.content))
-
-def encoded_dict(in_dict):
-    out_dict = {}
-    for k, v in in_dict.iteritems():
-        if isinstance(v, unicode):
-            v = v.encode('utf8')
-        elif isinstance(v, str):
-            # Must be encoded in UTF-8
-            v.decode('utf8')
-        out_dict[k] = v
-    return out_dict
-
-def async_get(url, params = None):
-    http = asynchttp.Http()
-    if params != None and len(params) > 0:
-        url += "?" + urllib.urlencode(encoded_dict(params))
-    response, content = http.request(url)
-    return AsyncCallToken(response, content)
-
-def async_post(url, params):
-    http = asynchttp.Http()
-    response, content = http.request(url, "POST", urllib.urlencode(encoded_dict(params)), headers = {'Content-type': 'application/x-www-form-urlencoded'})
-    return AsyncCallToken(response, content)
-
-def async_head(url, params = None):
-    http = asynchttp.Http()
-    if params != None and len(params) > 0:
-        url += "?" + urllib.urlencode(encoded_dict(params))
-    response, content = http.request(url, "HEAD")
-    return AsyncCallToken(response, content)
-
 def load_keywords():
-    hottrends = async_get(nihongodeok.hiwihhi_api_base + "/hottrends")
-    keywords = async_get(nihongodeok.hiwihhi_api_base + "/keywords/splitted?offset=1")
+    hottrends = nihongodeok.async_get(nihongodeok.hiwihhi_api_base + "/hottrends")
+    keywords = nihongodeok.async_get(nihongodeok.hiwihhi_api_base + "/keywords/splitted?offset=1")
 
     hottrends = hottrends.decode_json()
     keywords = keywords.decode_json()
@@ -75,11 +34,11 @@ def load_keywords():
     for hottrend in hottrends:
         hashcode = hottrend[1]
         if hashcode not in kwd:
-            kwd[hashcode] = async_get(nihongodeok.api_base + "/search", { "q":hottrend[0],"limit":0 })
+            kwd[hashcode] = nihongodeok.async_get(nihongodeok.api_base + "/search", { "q":hottrend[0],"limit":0 })
     for keyword in keywords:
         hashcode = keyword[1]
         if hashcode not in kwd:
-            kwd[hashcode] = async_get(nihongodeok.api_base + "/search", { "q":keyword[0],"limit":0 })
+            kwd[hashcode] = nihongodeok.async_get(nihongodeok.api_base + "/search", { "q":keyword[0],"limit":0 })
 
     for hashcode in kwd:
         kwd[hashcode] = kwd[hashcode].decode_json()[0]
@@ -98,7 +57,7 @@ def get_article_by_id(article_id):
     return load("/get_article/%s" % article_id)
 
 def request_clear_query_cache(table_name):
-    async_post(nihongodeok.api_base + "/clear_query_cache", {"table_name":table_name})
+    nihongodeok.async_post(nihongodeok.api_base + "/clear_query_cache", {"table_name":table_name})
 
 @app.route('/')
 def index():
@@ -282,8 +241,8 @@ def edit_article_post(article_id, language):
 
 @app.route("/tools/synonyms/missing")
 def missing_synonyms():
-    sold_keywords = async_get(nihongodeok.hiwihhi_api_base + "/keywords")
-    synonyms = async_get(nihongodeok.api_base + "/synonyms")
+    sold_keywords = nihongodeok.async_get(nihongodeok.hiwihhi_api_base + "/keywords")
+    synonyms = nihongodeok.async_get(nihongodeok.api_base + "/synonyms")
     sold_keywords = sold_keywords.decode_json()
     synonyms = synonyms.decode_json()
 
@@ -302,14 +261,14 @@ def missing_synonyms():
 @app.route("/tools/synonyms/edit", methods=['GET'])
 def edit_synonym():
     keyword = flask.request.args["keyword"]
-    synonyms = async_get(nihongodeok.api_base + "/synonyms", {"q":keyword} )
+    synonyms = nihongodeok.async_get(nihongodeok.api_base + "/synonyms", {"q":keyword} )
     synonyms = synonyms.decode_json()
     data = {"keyword":keyword}
     if keyword in synonyms:
         data["synonyms"] = synonyms[keyword]
-        data["count"] = async_get(nihongodeok.api_base + "/search", {"q":data["synonyms"], "limit":0}).decode_json()[0]
+        data["count"] = nihongodeok.async_get(nihongodeok.api_base + "/search", {"q":data["synonyms"], "limit":0}).decode_json()[0]
     else:
-        data["count"] = async_get(nihongodeok.api_base + "/search", {"q":keyword, "limit":0}).decode_json()[0]
+        data["count"] = nihongodeok.async_get(nihongodeok.api_base + "/search", {"q":keyword, "limit":0}).decode_json()[0]
 
     return flask.render_template("edit_synonyms.html", **data)
 
@@ -317,7 +276,7 @@ def edit_synonym():
 def post_edit_synonym():
     keyword = flask.request.form["keyword"]
     synonyms = flask.request.form["synonyms"]
-    result = async_post(nihongodeok.api_base + "/synonym", {"keyword":keyword,"synonyms":synonyms}).decode_json()
+    result = nihongodeok.async_post(nihongodeok.api_base + "/synonym", {"keyword":keyword,"synonyms":synonyms}).decode_json()
     request_clear_query_cache("articles")
     return flask.redirect("/tools/synonyms/edit?keyword=%s" % urllib2.quote(keyword.encode("utf-8")) )
 
@@ -399,18 +358,26 @@ def keyword(hashcode):
 
 @app.route("/article/<article_id>.html")
 def article(article_id):
-    article = get_article_by_id(article_id)
+    article = nihongodeok.async_get_article(article_id)
+    related_articles = nihongodeok.async_get_related_articles(article_id)
+
+    if article.response.status == 404:
+        return "404 Not found", 404
+
+    article = article.decode_json()
+    related_articles = related_articles.decode_json()
+
     url = article["url"]
 
     pagecapture_path = "/%s/%s.png" % (article_id[:2], article_id)
-    img_exists = async_head(pagecapture_base + pagecapture_path)
+    img_exists = nihongodeok.async_head(nihongodeok.pagecapture_base + pagecapture_path)
     pagecapture = None
     if img_exists.response.status == 200:
         pagecapture = nihongodeok.pagecapture_external_base + pagecapture_path
     else:
         nihongodeok.request_page_capture(url)
 
-    return flask.render_template("article.html", article=article,pagecapture=pagecapture)
+    return flask.render_template("article.html", article=article,pagecapture=pagecapture,related_articles=related_articles)
 
 @app.route("/site/<site_id>/")
 def by_site(site_id):

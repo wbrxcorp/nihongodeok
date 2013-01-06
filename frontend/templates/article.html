@@ -36,7 +36,17 @@
       <h3><a href="/site/{{article.site_id|urlencode}}">{{ article.site_id }}</a>, <a href="/date/{{article.date|replace('-','')}}">{{ article.date }}</a></h3>
       <p class="lead">{{ article.body_ja|articlehead }} <a href="http://translate.google.co.jp/translate?sl=en&tl=ja&js=n&prev=_t&hl=ja&ie=UTF-8&layout=2&eotf=1&u={{article.url|urlencode}}" class="btn btn-primary">全文を表示（翻訳） &raquo;</a></p>
       <p>{{ article.body_en|articlehead }} <a href="{{ article.url }}" class="btn">全文を表示（原文） &raquo;</a></p>
-      <hr/>
+      {% if related_articles|length > 0 %}
+        <hr/>
+        <h3>関連記事</h3>
+        {% for article in related_articles %}
+	  <div style="margin-bottom:0.5em;">
+	    <a href="{% if article.subject_en != "" and article.body_en != "" %}/article/{{article.id}}.html{% else %}{{ article.url }}{% endif %}">{{ article.subject_ja }}</a> (<a href="/site/{{article.site_id|urlencode}}">{{ article.site_id }}</a>, <a href="/date/{{article.date|replace('-','')}}">{{ article.date }})</a><br/>
+	    <!-- {{ article.id }} -->
+	    {{ article.body_ja|articlehead }}
+	  </div>
+        {% endfor %}
+      {% endif %}
       <div style="clear:right;"></div>
       {% include "footer.html" %}
     </div> <!-- /container -->
