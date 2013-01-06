@@ -16,6 +16,7 @@ import nihongodeok
 import default_config
 
 app = flask.Flask(__name__)
+app.secret_key = nihongodeok.facebook_app_secret
 
 def load(path):
     return json.load(urllib2.urlopen(nihongodeok.api_base + path))
@@ -75,6 +76,15 @@ def favicon():
 def robots():
     return flask.send_from_directory(os.path.join(app.root_path, 'static'),
                                'robots.txt', mimetype='text/plain')
+
+@app.route("/channel.html")
+def channel_html_for_facebook():
+    return '<script src="//connect.facebook.net/ja_JP/all.js"></script>'
+
+@app.route("/login.html")
+def login():
+    print flask.request.cookies
+    return flask.render_template("login.html", facebook_app_id=nihongodeok.facebook_app_id)
 
 @app.route("/tools/")
 def tools_index():
