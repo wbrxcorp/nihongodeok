@@ -12,24 +12,16 @@ import urllib2
 import re
 from BeautifulSoup import BeautifulSoup,Comment
 import asynchttp
+import nihongodeok
 import default_config
 
 app = flask.Flask(__name__)
-app.config.from_object(default_config.object)
-app_dir = os.path.dirname(os.path.abspath( __file__ ))
-config_file = app_dir + "/nihongodeok.conf"
-if os.path.exists(config_file): app.config.from_pyfile(config_file)
-API = app.config["API"]
-HIWIHHI_API = app.config["HIWIHHI_API"]
-PAGECAPTURE = app.config["PAGECAPTURE"]
-PAGECAPTURE_EXTERNAL = app.config["PAGECAPTURE_EXTERNAL"]
-PAGECAPTURE_REQUEST = PAGECAPTURE + app.config["PAGECAPTURE_REQUEST"]
 
 def load(path):
-    return json.load(urllib2.urlopen(API + path))
+    return json.load(urllib2.urlopen(nihongodeok.api_base + path))
 
 def load_hiwihhi(path):
-    return json.load(urllib2.urlopen(HIWIHHI_API + path))
+    return json.load(urllib2.urlopen(nihongodeok.hiwihhi_api_base + path))
 
 class AsyncCallToken:
     def __init__(self, response, content):
@@ -73,8 +65,8 @@ def async_head(url, params = None):
     return AsyncCallToken(response, content)
 
 def load_keywords():
-    hottrends = async_get(HIWIHHI_API + "/hottrends")
-    keywords = async_get(HIWIHHI_API + "/keywords/splitted?offset=1")
+    hottrends = async_get(nihongodeok.hiwihhi_api_base + "/hottrends")
+    keywords = async_get(nihongodeok.hiwihhi_api_base + "/keywords/splitted?offset=1")
 
     hottrends = hottrends.decode_json()
     keywords = keywords.decode_json()
@@ -83,11 +75,11 @@ def load_keywords():
     for hottrend in hottrends:
         hashcode = hottrend[1]
         if hashcode not in kwd:
-            kwd[hashcode] = async_get(API + "/search", { "q":hottrend[0],"limit":0 })
+            kwd[hashcode] = async_get(nihongodeok.api_base + "/search", { "q":hottrend[0],"limit":0 })
     for keyword in keywords:
         hashcode = keyword[1]
         if hashcode not in kwd:
-            kwd[hashcode] = async_get(API + "/search", { "q":keyword[0],"limit":0 })
+            kwd[hashcode] = async_get(nihongodeok.api_base + "/search", { "q":keyword[0],"limit":0 })
 
     for hashcode in kwd:
         kwd[hashcode] = kwd[hashcode].decode_json()[0]
@@ -102,8 +94,11 @@ def load_keywords():
 
     return (hottrends, keywords)
 
+def get_article_by_id(article_id):
+    return load("/get_article/%s" % article_id)
+
 def request_clear_query_cache(table_name):
-    async_post(API + "/clear_query_cache", {"table_name":table_name})
+    async_post(nihongodeok.api_base + "/clear_query_cache", {"table_name":table_name})
 
 @app.route('/')
 def index():
@@ -121,6 +116,10 @@ def favicon():
 def robots():
     return flask.send_from_directory(os.path.join(app.root_path, 'static'),
                                'robots.txt', mimetype='text/plain')
+
+@app.route("/tools/")
+def tools_index():
+    return flask.render_template("tools_index.html")
 
 @app.route("/tools/scrape")
 def _scrape():
@@ -157,7 +156,7 @@ def _scrape_post():
         canonical_url = result[0]
 
         exec(script)
-        soup = BeautifulSoup(urllib2.urlopen(API + "/cacheable_fetch?url=" + urllib2.quote(canonical_url)).read(),convertEntities=BeautifulSoup.HTML_ENTITIES)
+        soup = BeautifulSoup(urllib2.urlopen(nihongodeok.api_base + "/cacheable_fetch?url=" + urllib2.quote(canonical_url)).read(),convertEntities=BeautifulSoup.HTML_ENTITIES)
         remove_comments(soup)
         result = scrape(soup)
         if result == None:
@@ -192,7 +191,7 @@ def latest_articles():
 @app.route("/tools/show_article/<article_id>.html")
 def show_article(article_id):
     try:
-        article = load("/get_article/%s" % article_id)
+        article = get_article_by_id(article_id)
     except urllib2.HTTPError, e:
         return "HTTP Error %d during communicating with API" % (e.code), e.code
 
@@ -203,11 +202,11 @@ def delete_article():
     article_id = flask.request.form["article_id"]
     name = flask.request.form["name"]
 
-    article = load("/get_article/%s" % article_id)
+    article = get_article_by_id(article_id)
     if article["scraped_by"] != name:
         return "Name doesn't match"
 
-    req = urllib2.Request(API + "/delete_article", urllib.urlencode({"article_id":article_id}))
+    req = urllib2.Request(nihongodeok.api_base + "/delete_article", urllib.urlencode({"article_id":article_id}))
     result = json.load(urllib2.urlopen(req))
     return "deleted. <a href='./latest_articles'>Back to list</a>"
 
@@ -224,7 +223,7 @@ def to_be_translated():
 @app.route("/tools/translate/<article_id>", methods=['GET'])
 def translate_get(article_id, message = None):
     try:
-        article = load("/get_article/%s" % article_id)
+        article = get_article_by_id(article_id)
     except urllib2.HTTPError, e:
         return "HTTP Error %d during communicating with API" % (e.code), e.code
 
@@ -235,9 +234,14 @@ def translate_post(article_id):
     subject = flask.request.form["subject"].encode("utf-8")
     body = flask.request.form["body"].encode("utf-8")
     params = {"article_id":article_id, "language":"ja", "subject":subject, "body":body}
-    req = urllib2.Request(API + "/translate_article", urllib.urlencode(params))
+    req = urllib2.Request(nihongodeok.api_base + "/translate_article", urllib.urlencode(params))
     result = json.load(urllib2.urlopen(req))
-    
+
+    article = nihongodeok.get_article(article_id)
+    nihongodeok.request_page_capture(article["url"])
+    words_en, words_ja = nihongodeok.create_bag_of_words(article)
+    nihongodeok.push_bag_of_words(article_id, words_en, words_ja)
+
     return translate_get(article_id)
 
 @app.route("/tools/new_article/<language>", methods=['GET'])
@@ -258,7 +262,7 @@ def new_article_post(language):
                                "subject":subject, "body":body, 
                                "scraped_by":scraped_by,
                                "site_id":site_id, "date":date})
-    req = urllib2.Request(API + "/push_article", data=request_body, headers={'Content-type': 'application/json'})
+    req = urllib2.Request(nihongodeok.api_base + "/push_article", data=request_body, headers={'Content-type': 'application/json'})
     result = json.load(urllib2.urlopen(req))
     if result[1] == None: return "Failed"
     #else
@@ -267,7 +271,7 @@ def new_article_post(language):
 
 @app.route("/tools/edit_article/<article_id>/<language>", methods=['GET'])
 def edit_article(article_id, language):
-    article = load("/get_article/%s" % article_id)
+    article = get_article_by_id(article_id)
     subject = article["subject_" + language]
     body = article["body_" + language]
     return flask.render_template("edit_article.html", language=language,article=article, subject=subject, body=body)
@@ -278,8 +282,8 @@ def edit_article_post(article_id, language):
 
 @app.route("/tools/synonyms/missing")
 def missing_synonyms():
-    sold_keywords = async_get(HIWIHHI_API + "/keywords")
-    synonyms = async_get(API + "/synonyms")
+    sold_keywords = async_get(nihongodeok.hiwihhi_api_base + "/keywords")
+    synonyms = async_get(nihongodeok.api_base + "/synonyms")
     sold_keywords = sold_keywords.decode_json()
     synonyms = synonyms.decode_json()
 
@@ -298,14 +302,14 @@ def missing_synonyms():
 @app.route("/tools/synonyms/edit", methods=['GET'])
 def edit_synonym():
     keyword = flask.request.args["keyword"]
-    synonyms = async_get(API + "/synonyms", {"q":keyword} )
+    synonyms = async_get(nihongodeok.api_base + "/synonyms", {"q":keyword} )
     synonyms = synonyms.decode_json()
     data = {"keyword":keyword}
     if keyword in synonyms:
         data["synonyms"] = synonyms[keyword]
-        data["count"] = async_get(API + "/search", {"q":data["synonyms"], "limit":0}).decode_json()[0]
+        data["count"] = async_get(nihongodeok.api_base + "/search", {"q":data["synonyms"], "limit":0}).decode_json()[0]
     else:
-        data["count"] = async_get(API + "/search", {"q":keyword, "limit":0}).decode_json()[0]
+        data["count"] = async_get(nihongodeok.api_base + "/search", {"q":keyword, "limit":0}).decode_json()[0]
 
     return flask.render_template("edit_synonyms.html", **data)
 
@@ -313,14 +317,14 @@ def edit_synonym():
 def post_edit_synonym():
     keyword = flask.request.form["keyword"]
     synonyms = flask.request.form["synonyms"]
-    result = async_post(API + "/synonym", {"keyword":keyword,"synonyms":synonyms}).decode_json()
+    result = async_post(nihongodeok.api_base + "/synonym", {"keyword":keyword,"synonyms":synonyms}).decode_json()
     request_clear_query_cache("articles")
     return flask.redirect("/tools/synonyms/edit?keyword=%s" % urllib2.quote(keyword.encode("utf-8")) )
 
 @app.route("/ts/<script_name>.js")
 def ts(script_name):
-    tsfile = "%s/ts/%s.ts" % (app_dir, script_name)
-    jsfile = "%s/ts/%s.js" % (app_dir, script_name)
+    tsfile = "%s/ts/%s.ts" % (app.root_path, script_name)
+    jsfile = "%s/ts/%s.js" % (app.root_path, script_name)
 
     if not os.path.exists(tsfile):
         return "Not found", 404
@@ -336,7 +340,7 @@ def ts(script_name):
         if os.system("tsc --out %s %s" % (jsfile, tsfile)) != 0:
             return "alert('TypeScript compilation error');"
 
-    return flask.send_file("%s/ts/%s.js" % (app_dir, script_name), "text/javascript")
+    return flask.send_file("%s/ts/%s.js" % (app.root_path, script_name), "text/javascript")
 
 def complement_search_result(result):
     article = result["article"]
@@ -395,16 +399,16 @@ def keyword(hashcode):
 
 @app.route("/article/<article_id>.html")
 def article(article_id):
-    article = load("/get_article/%s" % article_id)
+    article = get_article_by_id(article_id)
     url = article["url"]
 
     pagecapture_path = "/%s/%s.png" % (article_id[:2], article_id)
-    img_exists = async_head(PAGECAPTURE + pagecapture_path)
+    img_exists = async_head(pagecapture_base + pagecapture_path)
     pagecapture = None
     if img_exists.response.status == 200:
-        pagecapture = PAGECAPTURE_EXTERNAL + pagecapture_path
+        pagecapture = nihongodeok.pagecapture_external_base + pagecapture_path
     else:
-        async_post(PAGECAPTURE_REQUEST, {"url":url})
+        nihongodeok.request_page_capture(url)
 
     return flask.render_template("article.html", article=article,pagecapture=pagecapture)
 
