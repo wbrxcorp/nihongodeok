@@ -83,7 +83,11 @@ def channel_html_for_facebook():
 
 @app.route("/login.html")
 def login():
-    print flask.request.cookies
+    if "user_id" not in flask.session:
+        print flask.request.cookies
+        cookie_name = "fbsr_" + nihongodeok.facebook_app_id
+        if cookie_name in flask.request.cookies:
+            flask.session["user_id"] = nihongodeok.get_user_id_from_external_id("fb_" + nihongodeok.parse_signed_request(flask.request.cookies[cookie_name])["user_id"])
     return flask.render_template("login.html", facebook_app_id=nihongodeok.facebook_app_id)
 
 @app.route("/tools/")
@@ -388,6 +392,18 @@ def article(article_id):
         nihongodeok.request_page_capture(url)
 
     return flask.render_template("article.html", article=article,pagecapture=pagecapture,related_articles=related_articles)
+
+@app.route("/article/<article_id>/related.html")
+def related_articles(article_id):
+    if len(article_id) != 16:
+        return "404 Not found", 404
+    article = nihongodeok.async_get_article(article_id)
+    related_articles = nihongodeok.async_get_related_articles(article_id, 20)
+    if article.response.status == 404 or related_articles.response.status == 404:
+        return "404 Not found", 404
+    article = article.decode_json()
+    related_articles = related_articles.decode_json()
+    return flask.render_template("related_articles.html", article=article, related_articles=related_articles)
 
 @app.route("/site/<site_id>/")
 def by_site(site_id):

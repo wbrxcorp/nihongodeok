@@ -2,6 +2,9 @@ import os
 import json
 import urllib
 import urllib2
+import base64
+import hashlib
+import hmac
 import nltk
 import asynchttp
 
@@ -13,6 +16,9 @@ pagecapture_request="/cgi-bin/capture_request.py"
 
 yahoo_application_id="dj0zaiZpPVBpYUdyb0Nzd1JDYSZkPVlXazlOMUEwUVhwWE5UWW1jR285TUEtLSZzPWNvbnN1bWVyc2VjcmV0Jng9MzE-"
 yahoo_secret="25106cf532f5193bf0eb8f775166a0d4f899b457"
+
+facebook_app_id="547456001932608"
+facebook_app_secret="ef0d30a366db2b16d8fb1bc0fd58cbda"
 
 __CONFIG_FILE = os.path.dirname(os.path.abspath( __file__ )) + "/nihongodeok.conf"
 
@@ -69,8 +75,8 @@ def get_article(article_id):
 def async_get_article(article_id):
     return async_get(api_base + "/get_article/%s" % article_id)
 
-def async_get_related_articles(article_id):
-    return async_get(api_base + "/related_articles/%s" % article_id)
+def async_get_related_articles(article_id, limit = 5):
+    return async_get(api_base + "/related_articles/%s" % article_id, {"limit":limit})
 
 def extract_keyphrase(text):
     params = {"appid":yahoo_application_id,"sentence":text[:10000].encode("utf-8"),"output":"json"}
@@ -117,3 +123,31 @@ def create_and_push_bag_of_words(article_id, print_result = False):
 
 def request_page_capture(url):
     async_post(pagecapture_base + pagecapture_request, {"url":url})
+
+def base64_url_decode(inp):
+    padding_factor = (4 - len(inp) % 4) % 4
+    inp += "="*padding_factor 
+    return base64.b64decode(unicode(inp).translate(dict(zip(map(ord, u'-_'), u'+/'))))
+
+def parse_signed_request(signed_request):
+    l = signed_request.split('.', 2)
+    encoded_sig = l[0]
+    payload = l[1]
+ 
+    sig = base64_url_decode(encoded_sig)
+    data = json.loads(base64_url_decode(payload))
+ 
+    if data.get('algorithm').upper() != 'HMAC-SHA256':
+        log.error('Unknown algorithm')
+        return None
+    else:
+        expected_sig = hmac.new(facebook_app_secret, msg=payload, digestmod=hashlib.sha256).digest()
+ 
+    if sig != expected_sig:
+        return None
+    else:
+        #log.debug('valid signed request received..')
+        return data
+
+def get_user_id_from_external_id(external_id):
+    return async_post(api_base + "/user/%s" % external_id, {}).decode_json()[0]

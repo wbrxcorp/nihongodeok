@@ -46,6 +46,7 @@
 	    {{ article.body_ja|articlehead }}
 	  </div>
         {% endfor %}
+	<a href="./{{ article.id[:16] }}/related.html">もっと表示する &raquo;</a>
       {% endif %}
       <div style="clear:right;"></div>
       {% include "footer.html" %}
