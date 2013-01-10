@@ -9,7 +9,7 @@ from BeautifulSoup import BeautifulSoup
 
 api_base = "http://api.nihongodeok.com/0.1/"
 
-VERSION="0.1.6"
+VERSION="0.1.7"
 
 __CONFIG_FILE = os.path.dirname(os.path.abspath( __file__ )) + "/nihongodeok.conf"
 
@@ -27,7 +27,7 @@ def rfc822_to_date(date_str):
 
 def date_to_str(date):
     if isinstance(date, basestring):
-        if re.match("[12][0-9][0-9][0-9]-[01][0-9]-[0-3][0-9]", date): return date
+        if re.match("^[12][0-9][0-9][0-9]-[01][0-9]-[0-3][0-9]$", date): return date
         if re.search("[0-3]?[0-9] +[A-Za-z][A-Za-z][A-Za-z] +[12][0-9][0-9][0-9] +[012][0-9]:[0-5][0-9]:[0-5][0-9]", date):
             # assume as rfc822
             date = rfc822_to_date(date)
