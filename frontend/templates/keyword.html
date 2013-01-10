@@ -41,7 +41,7 @@
 	    {% include "keywords.html" %}
           </div><!--/.sidebar-nav -->
           <center>{% include "skyscraper.html" %}</center>
-          {% if links %}{% for link in links %}{{ link|safe }}<br/>{% endfor %}{% endif%}
+          {# if links %}{% for link in links %}{{ link|safe }}<br/>{% endfor %}{% endif #}
         </div><!--/span-->
         <div class="span9">
 	  <h2>{{ keyword }} に関する記事</h2>
@@ -59,7 +59,19 @@
 	      {% endif %}
 	    </div>
 	  </div>
+	  {% if links and links|length > loop.index0 %}
+          <div style="margin-top:16px;">
+	    {{ links[loop.index0]|safe }}
+          </div>
+          {% endif %}
 	  {% endfor %}
+	  {% if links|length > results|length %}
+	    {% for link in links[results|length:] %}
+	      <div style="margin-top:16px;">
+	      {{ link|safe }}
+	      </div>
+	    {% endfor %}
+          {% endif %}
         </div><!--/span-->
       </div><!--/row-->
 
