@@ -1,10 +1,10 @@
 {% macro keyword(kwd,icon) -%}
   <li>
     <i class="{{icon}}"></i>
-    {%if kwd|length > 2 and kwd[2] > 0%}
+    {%if (kwd|length > 2 and kwd[2] > 0) or icon == "icon-thumbs-up" %}
       <a href="/k/{{ kwd[1] }}.html">{{ kwd[0] }}</a>({{kwd[2]}})
     {%else%}
-      {{ kwd[0] }}
+      {{ kwd[0] }} 
     {%endif%}
   </li>
 {%- endmacro %}
