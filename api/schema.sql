@@ -70,5 +70,6 @@ CREATE TABLE interpretations (
 	created_at datetime not null,
 	updated_at datetime,
 	public boolean not null default false,
+	disclosed_at datetime,
 	primary key(user_id,article_id)
 ) ENGINE=InnoDB CHARSET=utf8;
