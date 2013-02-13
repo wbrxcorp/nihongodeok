@@ -31,6 +31,11 @@
      ref.parentNode.insertBefore(js, ref);
    }(document, /*debug*/ false));
 </script>
+{% if session.user_id %}
+{{ session.user_id }}
+{# <a href="http://graph.facebook.com/{{session.signed_request.user_id}}">{{ session.signed_request.user_id }}</a> #}
+{% else %}
 <fb:login-button>Login with Facebook</fb:login-button>
+{% endif %}
 </body>
 </html>
