@@ -253,11 +253,11 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 
 	@RequestMapping(value=Array("/articles_to_be_translated"), method = Array(RequestMethod.GET))
 	@ResponseBody
-	def articlesToBeTranslated():Seq[Article] = 
+	def articlesToBeTranslated(@RequestParam(value="limit",defaultValue="100") limit:Int):Seq[Article] = 
 	  jdbcTemplate.queryForSeq("select * from articles where (subject_ja = '' or body_ja = '') " +
 	  		"and (match(subject_en) against('+Japan' in boolean mode) OR match(body_en) against('+Japan' in boolean mode)) " +
 	  		"and site_id not in('The Japan Times','Japan Today') " + 
-	  		"order by article_date desc,created_at desc limit 20").map(implicitly[Row=>Article])
+	  		"order by article_date desc,created_at desc limit ?", limit).map(implicitly[Row=>Article])
 
 	@RequestMapping(value=Array("/translate_article"), method = Array(RequestMethod.POST))
 	@ResponseBody
