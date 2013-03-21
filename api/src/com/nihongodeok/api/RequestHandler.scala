@@ -19,11 +19,12 @@ import org.apache.http.client.methods.HttpUriRequest
 import org.apache.http.protocol.{BasicHttpContext,ExecutionContext}
 import scala.runtime.RichInt
 import org.springframework.dao.DataIntegrityViolationException
+import com.walbrix.spring.Row
 
 @Controller
 @RequestMapping(Array(""))
 @Transactional
-class RequestHandler extends AnyRef with DataSourceSupport {
+class RequestHandler extends AnyRef with com.walbrix.spring.DataSourceSupport {
 
 	val groongaHost = "localhost"
 	val groongaPort = 10041
@@ -57,13 +58,13 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 	        id=row("id"),
 	        url=row("url"),
 	        siteId=row("site_id"),
-	        date=row.option("article_date"),
+	        date=row("article_date"),
 	        createdAt=row("created_at"),
 	        scrapedBy=row("scraped_by"),
 	        subjectEn=row("subject_en"),
 	        bodyEn=row("body_en"),
-	        subjectJa=row.option("subject_ja"),	  
-	        bodyJa=row.option("body_ja"))	  
+	        subjectJa=row("subject_ja"),	  
+	        bodyJa=row("body_ja"))	  
 	}
 	
 	implicit def row2article(row:Option[Row]):Option[Article] = {
@@ -203,11 +204,11 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 	@ResponseBody
 	def list():Map[String,Seq[(String,Int)]] = {
 		val scrapers = jdbcTemplate.queryForSeq("select scraped_by,count(scraped_by) cnt from articles group by scraped_by").map { row=>
-			(row("scraped_by"), row("cnt"))
+			(row("scraped_by"):String, row("cnt"):Int)
 		}
 
 		val sites = jdbcTemplate.queryForSeq("select site_id,count(site_id) cnt from articles group by site_id").map { row=>
-			(row("site_id"), row("cnt"))
+			(row("site_id"):String, row("cnt"):Int)
 		}
 
 		Map("scrapers"->scrapers, "sites"->sites)
@@ -289,7 +290,7 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 	      ("-6days", "created_at>=date_sub(current_date(),INTERVAL 6 DAY) and created_at < date_sub(current_date(),INTERVAL 5 DAY)"))
 
 	  val daily = conditions.map { day=>
-	    (day._1, jdbcTemplate.queryForInt("select count(*) cnt from articles where "+ day._2))
+	    (day._1, jdbcTemplate.queryForInt("select count(*) cnt from articles where "+ day._2):Int)
 	  }
 	  Map("daily"->daily)
 	}
@@ -353,7 +354,7 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 	  (q.isEmpty match {
 	    case true => jdbcTemplate.queryForSeq("select id,words from synonyms order by id")
 	    case false => jdbcTemplate.queryForSeq("select id,words from synonyms where id like ? order by id", "%" + q + "%")
-	  }).map { row=> (row("id"), row("words"))}.toMap
+	  }).map { row=> (row("id"):String, row("words"):String)}.toMap
 	}
 
 	@RequestMapping(value=Array("synonym"), method=Array(RequestMethod.POST))
@@ -399,15 +400,16 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 	    case Some(article) =>
 	      jdbcTemplate.queryForSeq("select words_en from bag_of_words where article_id like ?", articleId + '%').headOption match {
 	        case Some(row) =>
-		      jdbcTemplate.queryForSeq("select match(words_en) against(?) as score,id,url,site_id,article_date,subject_en,body_en,subject_ja,body_ja from bag_of_words,articles where article_id=id and id not like ? order by score desc limit ?", row("words_en"), articleId + '%', limit).map { row =>
+		      jdbcTemplate.queryForSeq("select match(words_en) against(?) as score,id,url,site_id,article_date,subject_en,body_en,subject_ja,body_ja from bag_of_words,articles where article_id=id and id not like ? order by score desc limit ?", 
+		          row("words_en"):String, articleId + '%', limit).map { row =>
 		    	RelatedArticle(id=row("id"),
 		            url=row("url"),
 		            siteId=row("site_id"),
-		            date=row.option("article_date"),
-		            subjectEn=row.option("subject_en"),
-		            bodyEn=row.option("body_en"),
-		            subjectJa=row.option("subject_ja"),
-		            bodyJa=row.option("body_ja"))
+		            date=row("article_date"),
+		            subjectEn=row("subject_en"),
+		            bodyEn=row("body_en"),
+		            subjectJa=row("subject_ja"),
+		            bodyJa=row("body_ja"))
 		      }
 	        case None => Seq()
 	      }
@@ -421,7 +423,7 @@ class RequestHandler extends AnyRef with DataSourceSupport {
 	@ResponseBody
 	def getUser(@PathVariable(value="external_id") externalId:String):(Int,UserProfile) = {
       jdbcTemplate.update("insert ignore into users(external_id,created_at) values(?,now())", externalId)
-      val userId = jdbcTemplate.queryForInt("select id from users where external_id=?", externalId)
+      val userId = jdbcTemplate.queryForInt("select id from users where external_id=?", externalId):Int
       jdbcTemplate.update("insert ignore into user_profiles(user_id, updated_at) values(?,now())", userId)
       (userId, UserProfile())
 	}
@@ -444,10 +446,10 @@ class RequestHandler extends AnyRef with DataSourceSupport {
       jdbcTemplate.queryForSeq("select * from interpretations where article_id=? and user_id=?", 
           articleId, userId).headOption match {
         case Some(row) => Interpretation(
-            subject = row.option("subject"),
-            summary = row.option("summary"),
-            commentary = row.option("commentary"),
-            commentaryFormat = row.option("commentary_format") )
+            subject = row("subject"),
+            summary = row("summary"),
+            commentary = row("commentary"),
+            commentaryFormat = row("commentary_format") )
         case None => response.sendError(HttpServletResponse.SC_NOT_FOUND); null
       }
 	}
